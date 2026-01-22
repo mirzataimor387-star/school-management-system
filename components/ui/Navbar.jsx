@@ -21,6 +21,7 @@ export default function Navbar() {
           <a className="hover:text-blue-600" href="#">Admissions</a>
           <a className="hover:text-blue-600" href="#">Classes</a>
           <a className="hover:text-blue-600" href="#">Contact</a>
+          <a className="hover:text-blue-600" href="#">Admin</a>
         </nav>
 
         {/* Mobile Button */}
@@ -39,6 +40,7 @@ export default function Navbar() {
           <a className="block" href="#">About</a>
           <a className="block" href="#">Admissions</a>
           <a className="block" href="#">Classes</a>
+          <a className="block" href="#">Admin</a>
           <a className="block" href="#">Contact</a>
         </div>
       )}

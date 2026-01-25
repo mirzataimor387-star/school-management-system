@@ -8,18 +8,23 @@ import "./globals.css";
 export default function RootLayout({ children }) {
   const pathname = usePathname();
 
-  // admin routes check
-  const isAdminRoute = pathname.startsWith("/admin");
+  // 🔒 dashboard routes
+  const isProtectedRoute =
+    pathname.startsWith("/super_admin") ||
+    pathname.startsWith("/principal") ||
+    pathname.startsWith("/teacher");
 
   return (
     <html lang="en">
       <body className="bg-white text-gray-900">
-        {/* show only on public pages */}
-        {!isAdminRoute && <Navbar />}
+
+        {/* ✅ PUBLIC ONLY */}
+        {!isProtectedRoute && <Navbar />}
 
         {children}
 
-        {!isAdminRoute && <Footer />}
+        {!isProtectedRoute && <Footer />}
+
       </body>
     </html>
   );

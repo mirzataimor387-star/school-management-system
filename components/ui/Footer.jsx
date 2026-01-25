@@ -1,7 +1,27 @@
+"use client";
+
+import { usePathname } from "next/navigation";
+
 export default function Footer() {
+  const pathname = usePathname();
+
+  const hidePrefixes = [
+    "/login",
+    "/admin/login",
+    "/teacher",
+    "/principal",
+    "/super-admin",
+  ];
+
+  const shouldHide = hidePrefixes.some(prefix =>
+    pathname === prefix || pathname.startsWith(prefix + "/")
+  );
+
+  if (shouldHide) return null;
+
   return (
-    <footer className="bg-blue-900 text-blue-200 py-6 text-center text-sm px-4">
-      © {new Date().getFullYear()} The Aim School. All rights reserved.
+    <footer className="bg-gray-900 text-white py-6 text-center">
+      © {new Date().getFullYear()} The Aim School
     </footer>
   );
 }

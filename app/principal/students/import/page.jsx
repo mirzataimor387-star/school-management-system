@@ -34,9 +34,6 @@ export default function ImportStudents() {
 
     return (
         <div className="max-w-xl">
-            <h1 className="text-xl font-bold mb-4">
-                Import Students (Excel)
-            </h1>
 
             <form
                 onSubmit={submit}
@@ -60,9 +57,6 @@ export default function ImportStudents() {
                     onChange={(e) => setFile(e.target.files[0])}
                 />
 
-                <button className="bg-green-600 text-white px-4 py-2 rounded">
-                    Import Students
-                </button>
             </form>
         </div>
     );

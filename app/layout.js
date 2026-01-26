@@ -12,7 +12,8 @@ export default function RootLayout({ children }) {
   const isProtectedRoute =
     pathname.startsWith("/super_admin") ||
     pathname.startsWith("/principal") ||
-    pathname.startsWith("/teacher");
+    pathname.startsWith("/principal") ||
+    pathname.startsWith("/login");
 
   return (
     <html lang="en">

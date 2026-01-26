@@ -1,12 +1,12 @@
 "use client";
 
-import { Bell, X, LogOut } from "lucide-react";
+import { Bell, LogOut, Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Loader from "@/components/ui/Loader";
 import { delay } from "@/utils/delay";
 
-export default function PrincipalTopbar() {
+export default function PrincipalTopbar({ onMenuClick }) {
   const router = useRouter();
 
   const [principal, setPrincipal] = useState(null);
@@ -35,7 +35,7 @@ export default function PrincipalTopbar() {
         method: "POST",
         credentials: "include",
       }),
-      delay(2000),
+      delay(1500),
     ]);
 
     router.replace("/");
@@ -44,18 +44,25 @@ export default function PrincipalTopbar() {
   return (
     <div className="bg-white border-b">
 
+      {/* top bar */}
+      <div className="h-14 px-4 flex items-center justify-between">
 
+        {/* left */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onMenuClick}
+            className="lg:hidden"
+          >
+            <Menu />
+          </button>
 
-      {/* TOP BAR */}
-      <div className="h-14 px-6 flex items-center justify-between">
+          <h2 className="font-semibold text-gray-800">
+            Principal Panel
+          </h2>
+        </div>
 
-        {/* LEFT */}
-        <h2 className="font-semibold text-gray-800">
-          Principal Panel
-        </h2>
-
-        {/* RIGHT */}
-        <div className="flex items-center gap-6">
+        {/* right */}
+        <div className="flex items-center gap-5">
 
           <Bell className="w-5 h-5 text-gray-600" />
 
@@ -67,7 +74,7 @@ export default function PrincipalTopbar() {
                 alt="profile"
               />
 
-              <div className="text-sm leading-tight">
+              <div className="text-sm leading-tight hidden sm:block">
                 <p className="font-medium">
                   {principal.name}
                 </p>
@@ -88,7 +95,9 @@ export default function PrincipalTopbar() {
             ) : (
               <>
                 <LogOut className="w-4 h-4" />
-                Logout
+                <span className="hidden sm:block">
+                  Logout
+                </span>
               </>
             )}
           </button>
@@ -96,7 +105,7 @@ export default function PrincipalTopbar() {
         </div>
       </div>
 
-      {/* 🔔 WELCOME / MANAGING INFO */}
+      {/* notice bar */}
       {showNotice && campus && (
         <div className="bg-blue-50 border-b px-6 py-2 flex items-center justify-between text-sm text-blue-800">
           <span>

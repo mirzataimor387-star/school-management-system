@@ -1,21 +1,33 @@
-import SuperAdminTopbar from "@/components/super_admin/Topbar";
+"use client";
+
+import { useState } from "react";
 import SuperAdminSidebar from "@/components/super_admin/Sidebar";
+import SuperAdminTopbar from "@/components/super_admin/Topbar";
 
 export default function SuperAdminLayout({ children }) {
-    return (
-        <div className="flex min-h-screen">
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
-            {/* Sidebar */}
-            <SuperAdminSidebar />
+  return (
+    <div className="flex h-screen overflow-hidden bg-gray-100">
 
-            {/* Main */}
-            <div className="flex-1">
-                <SuperAdminTopbar />
-                <main className="p-6 bg-gray-50 min-h-screen">
-                    {children}
-                </main>
-            </div>
+      {/* Sidebar */}
+      <SuperAdminSidebar
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
 
-        </div>
-    );
+      {/* Main area */}
+      <div className="flex flex-col flex-1 overflow-hidden">
+
+        <SuperAdminTopbar
+          onMenuClick={() => setSidebarOpen(true)}
+        />
+
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-gray-50">
+          {children}
+        </main>
+
+      </div>
+    </div>
+  );
 }

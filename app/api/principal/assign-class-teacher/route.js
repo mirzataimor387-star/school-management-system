@@ -5,7 +5,7 @@ import User from "@/models/User";
 import { getAuthUser } from "@/utils/getAuthUser";
 
 /* ============================
-   GET → assigned class teachers
+   GET → list classes + teacher
 ============================ */
 export async function GET() {
     try {
@@ -30,7 +30,7 @@ export async function GET() {
         });
 
     } catch (err) {
-        console.log("GET ASSIGNED TEACHERS ERROR:", err.message);
+        console.log("GET CLASS ERROR:", err.message);
 
         return NextResponse.json(
             { message: "Server error" },
@@ -40,7 +40,7 @@ export async function GET() {
 }
 
 /* ============================
-   POST → assign class teacher
+   POST → assign / change teacher
 ============================ */
 export async function POST(req) {
     try {
@@ -82,16 +82,66 @@ export async function POST(req) {
             );
         }
 
+        // ✅ assign OR change
         classData.classTeacher = teacherId;
         await classData.save();
 
         return NextResponse.json({
             success: true,
-            message: "Class teacher assigned successfully",
+            message: "Class teacher assigned / updated",
         });
 
     } catch (err) {
         console.log("ASSIGN CLASS ERROR:", err.message);
+
+        return NextResponse.json(
+            { message: "Server error" },
+            { status: 500 }
+        );
+    }
+}
+
+/* ============================
+   DELETE → remove teacher only
+============================ */
+export async function DELETE(req) {
+    try {
+        await dbConnect();
+
+        const authUser = await getAuthUser();
+
+        if (!authUser || authUser.role !== "principal") {
+            return NextResponse.json(
+                { message: "Unauthorized" },
+                { status: 401 }
+            );
+        }
+
+        const { classId } = await req.json();
+
+        const classData = await Class.findOne({
+            _id: classId,
+            campusId: authUser.campusId,
+        });
+
+        if (!classData) {
+            return NextResponse.json(
+                { message: "Invalid class" },
+                { status: 400 }
+            );
+        }
+
+        // 🔥 ONLY remove teacher
+        classData.classTeacher = null;
+        await classData.save();
+
+        return NextResponse.json({
+            success: true,
+            message: "Class teacher removed successfully",
+        });
+
+    } catch (err) {
+        console.log("REMOVE CLASS TEACHER ERROR:", err.message);
 
         return NextResponse.json(
             { message: "Server error" },

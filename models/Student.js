@@ -2,19 +2,72 @@ import mongoose from "mongoose";
 
 const studentSchema = new mongoose.Schema(
   {
+    // ======================
+    // PERSONAL INFORMATION
+    // ======================
     name: {
       type: String,
       required: true,
     },
 
-    rollNumber: {
-      type: Number,
+    fatherName: {
+      type: String,
       required: true,
     },
 
-    campusId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Campus",
+    gender: {
+      type: String,
+      enum: ["male", "female"],
+      required: true,
+    },
+
+    dateOfBirth: {
+      type: Date,
+      required: true,
+    },
+
+    studentPhoto: {
+      type: String,
+      default: "/student.png",
+    },
+
+    // ======================
+    // IDENTITY INFORMATION
+    // ======================
+    admissionNumber: {
+      type: String,
+      required: true,
+      unique: true,
+    },
+
+    bForm: {
+      type: String,
+      default: "", // child CNIC / B-form
+    },
+
+    // ======================
+    // GUARDIAN INFORMATION
+    // ======================
+    guardianName: {
+      type: String,
+      default: "",
+    },
+
+    guardianPhone: {
+      type: String,
+      default: "",
+    },
+
+    address: {
+      type: String,
+      default: "",
+    },
+
+    // ======================
+    // ACADEMIC INFORMATION
+    // ======================
+    rollNumber: {
+      type: Number,
       required: true,
     },
 
@@ -34,11 +87,20 @@ const studentSchema = new mongoose.Schema(
       enum: ["active", "left", "passed-out"],
       default: "active",
     },
+
+    // ======================
+    // SYSTEM
+    // ======================
+    campusId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Campus",
+      required: true,
+    },
   },
   { timestamps: true }
 );
 
-// unique roll number per class per session
+// ✅ roll number unique per class + session
 studentSchema.index(
   { rollNumber: 1, classId: 1, session: 1 },
   { unique: true }

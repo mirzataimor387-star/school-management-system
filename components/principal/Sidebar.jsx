@@ -16,11 +16,10 @@ export default function PrincipalSidebar({ isOpen, onClose }) {
 
   const linkClass = (path) =>
     `flex items-center gap-3 px-4 py-2 rounded-md text-sm transition
-     ${
-       pathname === path
-         ? "bg-blue-600 text-white"
-         : "text-gray-300 hover:bg-slate-800"
-     }`;
+     ${pathname === path
+      ? "bg-blue-600 text-white"
+      : "text-gray-300 hover:bg-slate-800"
+    }`;
 
   return (
     <>
@@ -86,6 +85,13 @@ export default function PrincipalSidebar({ isOpen, onClose }) {
             <BookOpen size={18} />
             Classes
           </Link>
+
+          <Link href="/principal/assign-class-teacher" onClick={onClose}
+            className={linkClass("/principal/assign-class-teacher")}>
+            <BookOpen size={18} />
+            Assign Teacher To Class
+          </Link>
+
 
           <Link href="/principal/attendance" onClick={onClose}
             className={linkClass("/principal/attendance")}>

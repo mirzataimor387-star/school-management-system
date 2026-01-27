@@ -20,16 +20,19 @@ export async function POST(req) {
 
         await dbConnect();
 
-        const { name, code } = await req.json();
+        const { name, code, currentSession } = await req.json();
 
-        if (!name || !code) {
+        // 🔴 session is mandatory
+        if (!name || !code || !currentSession) {
             return NextResponse.json(
-                { success: false, message: "All fields required" },
+                { success: false, message: "Name, code and session are required" },
                 { status: 400 }
             );
         }
 
-        const exists = await Campus.findOne({ code });
+        const exists = await Campus.findOne({
+            code: code.toUpperCase(),
+        });
 
         if (exists) {
             return NextResponse.json(
@@ -41,13 +44,17 @@ export async function POST(req) {
         const campus = await Campus.create({
             name,
             code: code.toUpperCase(),
+            currentSession,
         });
 
         return NextResponse.json(
             { success: true, campus },
             { status: 201 }
         );
+
     } catch (err) {
+        console.error("CREATE CAMPUS ERROR:", err);
+
         return NextResponse.json(
             { success: false, message: "Server error" },
             { status: 500 }
@@ -71,13 +78,17 @@ export async function GET() {
 
         await dbConnect();
 
-        const campuses = await Campus.find().sort({ createdAt: -1 });
+        const campuses = await Campus.find()
+            .sort({ createdAt: -1 });
 
         return NextResponse.json(
             { success: true, campuses },
             { status: 200 }
         );
+
     } catch (err) {
+        console.error("GET CAMPUSES ERROR:", err);
+
         return NextResponse.json(
             { success: false, message: "Server error" },
             { status: 500 }

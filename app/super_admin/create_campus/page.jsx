@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 export default function CreateCampusPage() {
     const [name, setName] = useState("");
     const [code, setCode] = useState("");
+    const [currentSession, setCurrentSession] = useState("");
+
     const [campuses, setCampuses] = useState([]);
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState("");
@@ -16,13 +18,7 @@ export default function CreateCampusPage() {
         try {
             const res = await fetch("/api/super_admin/campus/create");
 
-            let data = null;
-            try {
-                data = await res.json();
-            } catch {
-                return;
-            }
-
+            const data = await res.json();
             if (!res.ok || !data.success) return;
 
             setCampuses(data.campuses);
@@ -37,7 +33,7 @@ export default function CreateCampusPage() {
     const createCampus = async () => {
         setMessage("");
 
-        if (!name || !code) {
+        if (!name || !code || !currentSession) {
             setMessage("All fields are required");
             return;
         }
@@ -51,28 +47,24 @@ export default function CreateCampusPage() {
                 body: JSON.stringify({
                     name,
                     code: code.toUpperCase(),
+                    currentSession,
                 }),
             });
 
-            let data = null;
-            try {
-                data = await res.json();
-            } catch {
-                setMessage("Invalid server response");
-                setLoading(false);
-                return;
-            }
+            const data = await res.json();
 
             if (!res.ok || !data.success) {
-                setMessage(data?.message || "Failed");
+                setMessage(data.message || "Failed");
                 setLoading(false);
                 return;
             }
 
             setName("");
             setCode("");
+            setCurrentSession("");
             setMessage("Campus created successfully");
             fetchCampuses();
+
         } catch (err) {
             setMessage("Network error");
         }
@@ -109,9 +101,17 @@ export default function CreateCampusPage() {
                 <input
                     type="text"
                     placeholder="Campus Code (CAMP001)"
-                    className="border p-2 w-full mb-4 uppercase"
+                    className="border p-2 w-full mb-3 uppercase"
                     value={code}
                     onChange={(e) => setCode(e.target.value)}
+                />
+
+                <input
+                    type="text"
+                    placeholder="Current Session (2024-2025)"
+                    className="border p-2 w-full mb-4"
+                    value={currentSession}
+                    onChange={(e) => setCurrentSession(e.target.value)}
                 />
 
                 <button
@@ -137,6 +137,9 @@ export default function CreateCampusPage() {
                                 <p className="font-medium">{campus.name}</p>
                                 <p className="text-sm text-gray-500">
                                     {campus.code}
+                                </p>
+                                <p className="text-xs text-gray-400">
+                                    Session: {campus.currentSession}
                                 </p>
                             </div>
 

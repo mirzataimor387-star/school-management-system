@@ -13,6 +13,7 @@ export default function RootLayout({ children }) {
     pathname.startsWith("/super_admin") ||
     pathname.startsWith("/principal") ||
     pathname.startsWith("/principal") ||
+    pathname.startsWith("/teacher") ||
     pathname.startsWith("/login");
 
   return (

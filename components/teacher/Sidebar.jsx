@@ -8,10 +8,11 @@ import {
   ClipboardCheck,
   BookOpen,
   FileText,
-  Settings
+  Settings,
+  X
 } from "lucide-react";
 
-export default function TeacherSidebar() {
+export default function TeacherSidebar({ open, setOpen }) {
   const pathname = usePathname();
 
   const linkClass = (path) =>
@@ -22,62 +23,67 @@ export default function TeacherSidebar() {
     }`;
 
   return (
-    <aside className="w-64 bg-slate-900 text-white min-h-screen p-4">
+    <>
+      {/* Overlay (mobile) */}
+      {open && (
+        <div
+          onClick={() => setOpen(false)}
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+        />
+      )}
 
-      {/* Logo */}
-      <h1 className="text-xl font-bold mb-8 text-center">
-        TEACHER PANEL
-      </h1>
+      {/* Sidebar */}
+      <aside
+        className={`
+          fixed lg:static z-50
+          w-64 bg-slate-900 text-white min-h-screen p-4
+          transition-transform duration-300
+          ${open ? "translate-x-0" : "-translate-x-full"}
+          lg:translate-x-0
+        `}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-lg font-bold">TEACHER PANEL</h1>
 
-      {/* Menu */}
-      <nav className="space-y-2">
+          <button
+            onClick={() => setOpen(false)}
+            className="lg:hidden"
+          >
+            <X />
+          </button>
+        </div>
 
-        <Link href="/teacher" className={linkClass("/teacher")}>
-          <LayoutDashboard size={18} />
-          Dashboard
-        </Link>
+        {/* Menu */}
+        <nav className="space-y-2">
 
-        <Link
-          href="/teacher/classes"
-          className={linkClass("/teacher/classes")}
-        >
-          <BookOpen size={18} />
-          My Class
-        </Link>
+          <Link href="/teacher" className={linkClass("/teacher")}>
+            <LayoutDashboard size={18} />
+            Dashboard
+          </Link>
 
-        <Link
-          href="/teacher/students"
-          className={linkClass("/teacher/students")}
-        >
-          <Users size={18} />
-          Students
-        </Link>
+          <Link href="/teacher/students" className={linkClass("/teacher/students")}>
+            <Users size={18} />
+            Students
+          </Link>
 
-        <Link
-          href="/teacher/attendance"
-          className={linkClass("/teacher/attendance")}
-        >
-          <ClipboardCheck size={18} />
-          Attendance
-        </Link>
+          <Link href="/teacher/attendance" className={linkClass("/teacher/attendance")}>
+            <ClipboardCheck size={18} />
+            Attendance
+          </Link>
 
-        <Link
-          href="/teacher/assignments"
-          className={linkClass("/teacher/assignments")}
-        >
-          <FileText size={18} />
-          Assignments
-        </Link>
+          <Link href="/teacher/assignments" className={linkClass("/teacher/assignments")}>
+            <FileText size={18} />
+            Assignments
+          </Link>
 
-        <Link
-          href="/teacher/settings"
-          className={linkClass("/teacher/settings")}
-        >
-          <Settings size={18} />
-          Settings
-        </Link>
+          <Link href="/teacher/settings" className={linkClass("/teacher/settings")}>
+            <Settings size={18} />
+            Settings
+          </Link>
 
-      </nav>
-    </aside>
+        </nav>
+      </aside>
+    </>
   );
 }

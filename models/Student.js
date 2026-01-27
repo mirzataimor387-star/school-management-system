@@ -8,11 +8,13 @@ const studentSchema = new mongoose.Schema(
     name: {
       type: String,
       required: true,
+      trim: true,
     },
 
     fatherName: {
       type: String,
       required: true,
+      trim: true,
     },
 
     gender: {
@@ -37,12 +39,13 @@ const studentSchema = new mongoose.Schema(
     admissionNumber: {
       type: String,
       required: true,
-      unique: true,
+      trim: true,
     },
 
     bForm: {
       type: String,
-      default: "", // child CNIC / B-form
+      default: "",
+      trim: true,
     },
 
     // ======================
@@ -51,16 +54,19 @@ const studentSchema = new mongoose.Schema(
     guardianName: {
       type: String,
       default: "",
+      trim: true,
     },
 
     guardianPhone: {
       type: String,
       default: "",
+      trim: true,
     },
 
     address: {
       type: String,
       default: "",
+      trim: true,
     },
 
     // ======================
@@ -79,7 +85,7 @@ const studentSchema = new mongoose.Schema(
 
     session: {
       type: String,
-      required: true, // 2024–2025
+      required: true, // e.g. 2024–2025
     },
 
     status: {
@@ -89,20 +95,35 @@ const studentSchema = new mongoose.Schema(
     },
 
     // ======================
-    // SYSTEM
+    // SYSTEM / AUDIT
     // ======================
     campusId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Campus",
       required: true,
     },
+
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
   },
   { timestamps: true }
 );
 
+/* =====================================================
+   INDEXES (VERY IMPORTANT)
+===================================================== */
+
 // ✅ roll number unique per class + session
 studentSchema.index(
   { rollNumber: 1, classId: 1, session: 1 },
+  { unique: true }
+);
+
+// ✅ admission number unique per campus
+studentSchema.index(
+  { admissionNumber: 1, campusId: 1 },
   { unique: true }
 );
 

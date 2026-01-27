@@ -11,12 +11,19 @@ const campusSchema = new mongoose.Schema(
     code: {
       type: String,
       required: true,
-      unique: true, // e.g. CAMP001
+      unique: true,
       uppercase: true,
       trim: true,
     },
 
-    principal: {
+    // 🔥 CURRENT ACADEMIC SESSION
+    currentSession: {
+      type: String,
+      required: true, // e.g. "2024-2025"
+    },
+
+    // one campus → one principal
+    principalId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       default: null,

@@ -2,73 +2,51 @@
 
 import { useEffect, useState } from "react";
 import {
+  UserCheck,
   Pencil,
   Trash2,
-  Save,
-  X,
-  UserCheck
+  CheckCircle,
 } from "lucide-react";
 
 export default function AssignClassTeacherPage() {
-
   const [classes, setClasses] = useState([]);
   const [teachers, setTeachers] = useState([]);
-  const [selected, setSelected] = useState({});
   const [editRow, setEditRow] = useState(null);
-  const [loadingId, setLoadingId] = useState(null);
-
-  // ✅ NEW
+  const [selected, setSelected] = useState({});
   const [loading, setLoading] = useState(true);
-  const [apiMessage, setApiMessage] = useState("");
+  const [message, setMessage] = useState("");
 
-  /* =============================
-     LOAD DATA
-  ============================= */
   const loadData = async () => {
     try {
       setLoading(true);
-      setApiMessage("");
+      setMessage("");
 
-      // teachers
       const tRes = await fetch("/api/principal/teachers", {
-        credentials: "same-origin",
+        credentials: "include",
       });
       const tData = await tRes.json();
 
-      if (!tData.success) {
-        setApiMessage("Failed to load teachers");
-        setTeachers([]);
-        setClasses([]);
+      const cRes = await fetch("/api/principal/class-assignments", {
+        credentials: "include",
+      });
+      const cData = await cRes.json();
+
+      if (!tData.success || !cData.success) {
+        setMessage("Failed to load data");
         return;
       }
 
       setTeachers(tData.teachers || []);
+      setClasses(cData.classes || []);
 
-      // classes
-      const cRes = await fetch("/api/principal/assign-class-teacher", {
-        credentials: "same-origin",
+      const map = {};
+      cData.classes.forEach((cls) => {
+        map[cls._id] = cls.classTeacher?._id || "";
       });
+      setSelected(map);
 
-      const cData = await cRes.json();
-
-      if (!cData.success) {
-        setApiMessage(cData.message || "Failed to load classes");
-        setClasses([]);
-        return;
-      }
-
-      const sorted = (cData.classes || []).sort((a, b) => {
-        const aNum = parseInt(a.className);
-        const bNum = parseInt(b.className);
-        if (aNum === bNum) return a.section.localeCompare(b.section);
-        return aNum - bNum;
-      });
-
-      setClasses(sorted);
-
-    } catch (err) {
-      setApiMessage("Server not responding");
-      setClasses([]);
+    } catch {
+      setMessage("Server not responding");
     } finally {
       setLoading(false);
     }
@@ -78,20 +56,13 @@ export default function AssignClassTeacherPage() {
     loadData();
   }, []);
 
-  /* =============================
-     ASSIGN / UPDATE
-  ============================= */
-  const saveTeacher = async (classId) => {
-    if (!selected[classId]) {
-      alert("Please select teacher");
-      return;
-    }
-
-    setLoadingId(classId);
-
-    await fetch("/api/principal/assign-class-teacher", {
+  /* =====================
+     ASSIGN / CHANGE
+  ===================== */
+  const assignTeacher = async (classId) => {
+    await fetch("/api/principal/class-assignments", {
       method: "POST",
-      credentials: "same-origin",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         classId,
@@ -100,26 +71,22 @@ export default function AssignClassTeacherPage() {
     });
 
     setEditRow(null);
-    setLoadingId(null);
     loadData();
   };
 
-  /* =============================
+  /* =====================
      REMOVE
-  ============================= */
+  ===================== */
   const removeTeacher = async (classId) => {
     if (!confirm("Remove class teacher?")) return;
 
-    setLoadingId(classId);
-
-    await fetch("/api/principal/assign-class-teacher", {
+    await fetch("/api/principal/class-assignments", {
       method: "DELETE",
-      credentials: "same-origin",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ classId }),
     });
 
-    setLoadingId(null);
     loadData();
   };
 
@@ -128,141 +95,134 @@ export default function AssignClassTeacherPage() {
 
       <h1 className="text-xl font-bold mb-6 flex items-center gap-2">
         <UserCheck size={22} />
-        Assign / Change Class Teacher
+        Class Teacher Management
       </h1>
 
-      <div className="overflow-x-auto">
-        <table className="w-full bg-white shadow rounded-xl overflow-hidden">
+      {message && (
+        <div className="mb-4 text-red-600 font-medium">
+          {message}
+        </div>
+      )}
 
-          <thead className="bg-gray-100 text-sm">
+      <div className="bg-white shadow rounded-xl overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-100">
             <tr>
               <th className="p-3 text-left">Class</th>
               <th className="p-3 text-left">Section</th>
-              <th className="p-3 text-left">Class Teacher</th>
-              <th className="p-3 text-left w-[220px]">Actions</th>
+              <th className="p-3 text-left">Teacher</th>
+              <th className="p-3 text-left w-48">Actions</th>
             </tr>
           </thead>
 
           <tbody>
-
-            {/* 🔄 LOADING */}
             {loading && (
               <tr>
                 <td colSpan="4" className="p-6 text-center text-gray-500">
-                  Loading classes...
+                  Loading...
                 </td>
               </tr>
             )}
 
-            {/* ❌ API ERROR */}
-            {!loading && apiMessage && (
-              <tr>
-                <td colSpan="4" className="p-6 text-center text-red-600">
-                  {apiMessage}
-                </td>
-              </tr>
-            )}
+            {!loading &&
+              classes.map((cls) => {
+                const assigned = cls.classTeacher;
 
-            {/* ✅ DATA */}
-            {!loading && !apiMessage &&
-              classes.map((cls) => (
-                <tr key={cls._id} className="border-t text-sm">
+                return (
+                  <tr key={cls._id} className="border-t">
 
-                  <td className="p-3">{cls.className}</td>
-                  <td className="p-3">{cls.section}</td>
+                    <td className="p-3">{cls.className}</td>
+                    <td className="p-3">{cls.section}</td>
 
-                  <td className="p-3">
-                    {editRow === cls._id ? (
-                      <select
-                        className="border p-2 w-full rounded"
-                        value={selected[cls._id] || ""}
-                        onChange={(e) =>
-                          setSelected({
-                            ...selected,
-                            [cls._id]: e.target.value,
-                          })
-                        }
-                      >
-                        <option value="">Select teacher</option>
-                        {teachers.map((t) => (
-                          <option key={t._id} value={t._id}>
-                            {t.name}
-                          </option>
-                        ))}
-                      </select>
-                    ) : cls.classTeacher ? (
-                      <span className="font-semibold text-green-700">
-                        {cls.classTeacher.name}
-                      </span>
-                    ) : (
-                      <span className="text-gray-400 italic">
-                        Not assigned
-                      </span>
-                    )}
-                  </td>
+                    {/* ================= TEACHER COLUMN ================= */}
+                    <td className="p-3">
 
-                  <td className="p-3 flex flex-wrap gap-2">
-                    {editRow === cls._id ? (
-                      <>
-                        <button
-                          onClick={() => saveTeacher(cls._id)}
-                          disabled={loadingId === cls._id}
-                          className="bg-blue-600 text-white px-3 py-1 rounded flex items-center gap-1 text-sm"
-                        >
-                          <Save size={16} />
-                          Save
-                        </button>
+                      {/* ASSIGNED (VIEW MODE) */}
+                      {assigned && editRow !== cls._id && (
+                        <div className="flex items-center gap-2 text-green-700 font-medium">
+                          <CheckCircle size={16} />
+                          {assigned.name}
+                        </div>
+                      )}
 
-                        <button
-                          onClick={() => setEditRow(null)}
-                          className="bg-gray-200 px-3 py-1 rounded flex items-center gap-1 text-sm"
-                        >
-                          <X size={16} />
-                          Cancel
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          onClick={() => {
-                            setEditRow(cls._id);
+                      {/* ASSIGN / CHANGE MODE */}
+                      {(!assigned || editRow === cls._id) && (
+                        <select
+                          className="border p-2 rounded w-full"
+                          value={selected[cls._id] || ""}
+                          onChange={(e) =>
                             setSelected({
                               ...selected,
-                              [cls._id]:
-                                cls.classTeacher?._id || "",
-                            });
-                          }}
-                          className="text-blue-600 hover:underline flex items-center gap-1 text-sm"
+                              [cls._id]: e.target.value,
+                            })
+                          }
                         >
-                          <Pencil size={16} />
-                          Change
-                        </button>
+                          <option value="">Select teacher</option>
+                          {teachers.map((t) => (
+                            <option key={t._id} value={t._id}>
+                              {t.name}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </td>
 
-                        {cls.classTeacher && (
+                    {/* ================= ACTIONS ================= */}
+                    <td className="p-3 flex gap-2">
+
+                      {/* ASSIGN */}
+                      {!assigned && (
+                        <button
+                          onClick={() => assignTeacher(cls._id)}
+                          className="bg-blue-600 text-white px-3 py-1 rounded text-sm"
+                        >
+                          Assign
+                        </button>
+                      )}
+
+                      {/* CHANGE */}
+                      {assigned && editRow !== cls._id && (
+                        <>
+                          <button
+                            onClick={() => setEditRow(cls._id)}
+                            className="bg-blue-600 text-white px-3 py-1 rounded flex items-center gap-1 text-sm"
+                          >
+                            <Pencil size={14} />
+                            Change
+                          </button>
+
                           <button
                             onClick={() => removeTeacher(cls._id)}
-                            disabled={loadingId === cls._id}
-                            className="text-red-600 hover:underline flex items-center gap-1 text-sm"
+                            className="bg-red-600 text-white px-3 py-1 rounded flex items-center gap-1 text-sm"
                           >
-                            <Trash2 size={16} />
+                            <Trash2 size={14} />
                             Remove
                           </button>
-                        )}
-                      </>
-                    )}
-                  </td>
-                </tr>
-              ))}
+                        </>
+                      )}
 
-            {/* ⚠️ EMPTY DATA */}
-            {!loading && !apiMessage && classes.length === 0 && (
+                      {/* SAVE AFTER CHANGE */}
+                      {editRow === cls._id && (
+                        <button
+                          onClick={() => assignTeacher(cls._id)}
+                          className="bg-green-600 text-white px-3 py-1 rounded text-sm"
+                        >
+                          Update
+                        </button>
+                      )}
+
+                    </td>
+                  </tr>
+                );
+              })}
+
+            {!loading && classes.length === 0 && (
               <tr>
                 <td colSpan="4" className="p-6 text-center text-gray-500">
                   No classes found
                 </td>
               </tr>
             )}
-
           </tbody>
         </table>
       </div>

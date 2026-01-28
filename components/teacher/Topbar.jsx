@@ -1,12 +1,10 @@
 "use client";
 
 import { Bell, Menu, User, LogOut } from "lucide-react";
-import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 export default function TeacherTopbar({ setOpen }) {
   const router = useRouter();
-  const [openMenu, setOpenMenu] = useState(false);
 
   const logout = async () => {
     await fetch("/api/auth/logout", {
@@ -20,7 +18,7 @@ export default function TeacherTopbar({ setOpen }) {
   return (
     <div className="h-14 bg-white border-b px-4 md:px-6 flex items-center justify-between">
 
-      {/* Left */}
+      {/* LEFT */}
       <div className="flex items-center gap-3">
         <button
           onClick={() => setOpen(true)}
@@ -34,8 +32,8 @@ export default function TeacherTopbar({ setOpen }) {
         </h2>
       </div>
 
-      {/* Right */}
-      <div className="flex items-center gap-5 relative">
+      {/* RIGHT */}
+      <div className="flex items-center gap-5">
 
         {/* Notification */}
         <button className="relative">
@@ -43,29 +41,23 @@ export default function TeacherTopbar({ setOpen }) {
           <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></span>
         </button>
 
-        {/* Profile */}
-        <div
-          onClick={() => setOpenMenu(!openMenu)}
-          className="flex items-center gap-2 cursor-pointer select-none"
-        >
-          <User className="w-6 h-6 text-gray-700" />
+        {/* Teacher label */}
+        <div className="flex items-center gap-2 text-gray-700">
+          <User className="w-6 h-6" />
           <span className="hidden sm:block text-sm font-medium">
             Teacher
           </span>
         </div>
 
-        {/* Dropdown */}
-        {openMenu && (
-          <div className="absolute right-0 top-12 w-40 bg-white border rounded shadow-md z-50">
-            <button
-              onClick={logout}
-              className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-gray-100 text-red-600"
-            >
-              <LogOut size={16} />
-              Logout
-            </button>
-          </div>
-        )}
+        {/* LOGOUT — ALWAYS VISIBLE */}
+        <button
+          onClick={logout}
+          className="flex items-center gap-2 text-sm text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-md"
+        >
+          <LogOut size={16} />
+          <span className="hidden sm:inline">Logout</span>
+        </button>
+
       </div>
     </div>
   );

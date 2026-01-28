@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/utils/connectdb";
 import { getAuthUser } from "@/utils/getAuthUser";
-
-import Student from "@/models/Student";
 import Class from "@/models/Class";
 
 export async function GET() {
@@ -18,25 +16,14 @@ export async function GET() {
       );
     }
 
-    // ✅ teacher ki classes
     const classes = await Class.find({
-      classTeacher: authUser.id,
+      classTeacher: authUser.id, // ✅ REAL ObjectId
     });
 
-    const classIds = classes.map(c => c._id);
-
-    // ✅ all students of teacher
-    const students = await Student.find({
-      classId: { $in: classIds },
-      status: "active",
-    })
-      .sort({ rollNumber: 1 })
-      .select("rollNumber name fatherName status");
-
-    return NextResponse.json({ students });
+    return NextResponse.json(classes);
 
   } catch (err) {
-    console.log("TEACHER STUDENTS ERROR:", err);
+    console.log("CLASSES ERROR:", err);
 
     return NextResponse.json(
       { message: "Server error" },

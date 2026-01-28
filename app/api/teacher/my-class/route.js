@@ -5,6 +5,7 @@ import { getAuthUser } from "@/utils/getAuthUser";
 import Class from "@/models/Class";
 import Student from "@/models/Student";
 import User from "@/models/User";
+import Campus from "@/models/Campus"; // ✅ ADD THIS
 
 export async function GET() {
     try {
@@ -19,9 +20,12 @@ export async function GET() {
             );
         }
 
-        const teacher = await User.findById(authUser.id).select(
-            "name avatar"
-        );
+        const teacher = await User.findById(authUser.id)
+            .select("name avatar campusId");
+
+        // 🏫 get campus
+        const campus = await Campus.findById(teacher.campusId)
+            .select("code name");
 
         const classes = await Class.find({
             classTeacher: authUser.id,
@@ -32,6 +36,7 @@ export async function GET() {
                 assigned: false,
                 teacherName: teacher.name,
                 avatar: teacher.avatar,
+                campusCode: campus?.code || null,
                 classes: [],
             });
         }
@@ -57,6 +62,7 @@ export async function GET() {
             assigned: true,
             teacherName: teacher.name,
             avatar: teacher.avatar,
+            campusCode: campus?.code || null, // ✅ THIS FIXES UI
             classes: result,
         });
 

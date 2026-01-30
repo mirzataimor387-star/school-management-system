@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 export default function CreateCampusPage() {
+    const [schoolName, setSchoolName] = useState("");
     const [name, setName] = useState("");
     const [code, setCode] = useState("");
     const [currentSession, setCurrentSession] = useState("");
@@ -11,13 +12,13 @@ export default function CreateCampusPage() {
     const [loading, setLoading] = useState(false);
 
     const fetchCampuses = async () => {
-        const res = await fetch("/api/super_admin/campus/list");
+        const res = await fetch("/api/super_admin/campus/create");
         const data = await res.json();
         if (data.success) setCampuses(data.campuses);
     };
 
     const createCampus = async () => {
-        if (!name || !code || !currentSession) {
+        if (!schoolName || !name || !code || !currentSession) {
             setMessage("All fields are required");
             return;
         }
@@ -29,6 +30,7 @@ export default function CreateCampusPage() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
+                schoolName,
                 name,
                 code: code.toUpperCase(),
                 currentSession,
@@ -40,6 +42,7 @@ export default function CreateCampusPage() {
         if (!data.success) {
             setMessage(data.message);
         } else {
+            setSchoolName("");
             setName("");
             setCode("");
             setCurrentSession("");
@@ -69,7 +72,14 @@ export default function CreateCampusPage() {
 
                 <input
                     className="border p-2 w-full mb-3"
-                    placeholder="Campus Name"
+                    placeholder="School Name (The Asian School & College)"
+                    value={schoolName}
+                    onChange={(e) => setSchoolName(e.target.value)}
+                />
+
+                <input
+                    className="border p-2 w-full mb-3"
+                    placeholder="Campus Name (Abbaspur Campus)"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                 />
@@ -103,19 +113,16 @@ export default function CreateCampusPage() {
                 {campuses.map((c) => (
                     <div
                         key={c._id}
-                        className="border p-4 rounded flex justify-between"
+                        className="border p-4 rounded"
                     >
-                        <div>
-                            <p className="font-medium">{c.name}</p>
-                            <p className="text-sm text-gray-500">{c.code}</p>
-                            <p className="text-xs text-gray-400">
-                                Session: {c.currentSession}
-                            </p>
-                        </div>
-
-                        <span className="text-sm text-green-600">
-                            Active
-                        </span>
+                        <p className="font-semibold text-lg">
+                            {c.schoolName}
+                        </p>
+                        <p className="font-medium">{c.name}</p>
+                        <p className="text-sm text-gray-500">{c.code}</p>
+                        <p className="text-xs text-gray-400">
+                            Session: {c.currentSession}
+                        </p>
                     </div>
                 ))}
             </div>

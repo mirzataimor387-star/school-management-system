@@ -28,7 +28,7 @@ export default function TeacherTopbar({ setOpen }) {
         </button>
 
         <h2 className="font-semibold text-gray-800">
-          Teacher Panel
+          The Asian School & College
         </h2>
       </div>
 
@@ -36,18 +36,17 @@ export default function TeacherTopbar({ setOpen }) {
       <div className="flex items-center gap-5">
 
         {/* Notification */}
-        <button className="relative">
+        {/* <button className="relative">
           <Bell className="w-5 h-5 text-gray-600" />
           <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-        </button>
+        </button> */}
 
         {/* Teacher label */}
-        <div className="flex items-center gap-2 text-gray-700">
-          <User className="w-6 h-6" />
+        {/* <div className="flex items-center gap-2 text-gray-700">
           <span className="hidden sm:block text-sm font-medium">
             Teacher
           </span>
-        </div>
+        </div> */}
 
         {/* LOGOUT — ALWAYS VISIBLE */}
         <button

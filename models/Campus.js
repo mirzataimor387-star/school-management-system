@@ -2,6 +2,13 @@ import mongoose from "mongoose";
 
 const campusSchema = new mongoose.Schema(
   {
+    // 🏫 SCHOOL NAME (same for all campuses)
+    schoolName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
     name: {
       type: String,
       required: true,
@@ -16,13 +23,11 @@ const campusSchema = new mongoose.Schema(
       trim: true,
     },
 
-    // 🔥 CURRENT ACADEMIC SESSION
     currentSession: {
       type: String,
-      required: true, // e.g. "2024-2025"
+      required: true,
     },
 
-    // one campus → one principal
     principalId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

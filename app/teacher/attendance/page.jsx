@@ -179,7 +179,7 @@ export default function TeacherAttendance() {
             {/* HEADER */}
             <div className="bg-white p-4 rounded-xl shadow">
                 <h1 className="text-xl font-bold">
-                    {classInfo.className}th - {classInfo.section}
+                    {classInfo.className} - {classInfo.section}
                 </h1>
 
                 <div className="mt-2 text-sm text-gray-600 flex flex-wrap gap-4">

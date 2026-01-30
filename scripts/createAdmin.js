@@ -20,7 +20,7 @@ async function createAdmin() {
 
     // check existing admin
     const existingAdmin = await User.findOne({
-      email: "admin@school.com",
+      email: "superadmin@asian.com",
     });
 
     if (existingAdmin) {
@@ -34,7 +34,7 @@ async function createAdmin() {
     // create admin user
     const admin = await User.create({
       name: "Super Admin",
-      email: "admin@school.com",
+      email: "superadmin@asian.com",
       password: hashedPassword,
       role: "super_admin",
     });

@@ -1,74 +1,57 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 
-export default function AllCampusesPage() {
+export default function SuperAdminCampuses() {
   const [campuses, setCampuses] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const router = useRouter();
-
   useEffect(() => {
-    fetch("/api/super_admin/campus/list", {
-      credentials: "include",
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success) {
-          setCampuses(data.campuses);
-        }
-        setLoading(false);
-      });
+    loadCampuses();
   }, []);
 
-  if (loading) {
-    return <p>Loading campuses...</p>;
-  }
+  const loadCampuses = async () => {
+    const res = await fetch("/api/super_admin/campus/list");
+    const data = await res.json();
+    setCampuses(data.campuses || []);
+    setLoading(false);
+  };
 
   return (
-    <div>
-      <h1 className="text-xl font-bold mb-6">
-        All Campuses
-      </h1>
+    <div className="p-6 bg-white rounded-xl shadow">
+      <h1 className="text-xl font-bold mb-6">Campuses</h1>
 
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {campuses.map((campus) => (
-          <div
-            key={campus._id}
-            onClick={() =>
-              router.push(
-                `/super_admin/campus/${campus._id}`
-              )
-            }
-            className="cursor-pointer bg-white p-5 rounded shadow hover:border-blue-500 border"
-          >
-            <h2 className="font-semibold text-lg">
-              {campus.name}
-            </h2>
+      {loading ? (
+        <p className="text-gray-500">Loading...</p>
+      ) : campuses.length === 0 ? (
+        <p className="text-red-600">No campuses found</p>
+      ) : (
+        <table className="w-full border text-sm">
+          <thead className="bg-gray-100">
+            <tr>
+              <th className="p-3 border">Campus</th>
+              <th className="p-3 border">Principal</th>
+            </tr>
+          </thead>
 
-            <p className="text-sm text-gray-500">
-              Code: {campus.code}
-            </p>
-
-            {/* ✅ YAHAN USE HOTA HAI */}
-            <p className="mt-2 text-sm font-medium">
-              Principal:{" "}
-              <span
-                className={
-                  campus.principal
-                    ? "text-green-600"
-                    : "text-red-500"
-                }
-              >
-                {campus.principal
-                  ? "Assigned"
-                  : "Not Assigned"}
-              </span>
-            </p>
-          </div>
-        ))}
-      </div>
+          <tbody>
+            {campuses.map((c) => (
+              <tr key={c._id}>
+                <td className="p-3 border">{c.name}</td>
+                <td className="p-3 border">
+                  {c.principal ? (
+                    <span className="text-green-700 font-semibold">
+                      {c.principal.name}
+                    </span>
+                  ) : (
+                    <span className="text-red-600">Not Assigned</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }

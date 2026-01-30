@@ -6,67 +6,45 @@ export default function CreateCampusPage() {
     const [name, setName] = useState("");
     const [code, setCode] = useState("");
     const [currentSession, setCurrentSession] = useState("");
-
     const [campuses, setCampuses] = useState([]);
-    const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState("");
+    const [loading, setLoading] = useState(false);
 
-    /* ======================
-       FETCH CAMPUSES
-    ====================== */
     const fetchCampuses = async () => {
-        try {
-            const res = await fetch("/api/super_admin/campus/create");
-
-            const data = await res.json();
-            if (!res.ok || !data.success) return;
-
-            setCampuses(data.campuses);
-        } catch (err) {
-            console.error("Fetch error");
-        }
+        const res = await fetch("/api/super_admin/campus/list");
+        const data = await res.json();
+        if (data.success) setCampuses(data.campuses);
     };
 
-    /* ======================
-       CREATE CAMPUS
-    ====================== */
     const createCampus = async () => {
-        setMessage("");
-
         if (!name || !code || !currentSession) {
             setMessage("All fields are required");
             return;
         }
 
         setLoading(true);
+        setMessage("");
 
-        try {
-            const res = await fetch("/api/super_admin/campus/create", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    name,
-                    code: code.toUpperCase(),
-                    currentSession,
-                }),
-            });
+        const res = await fetch("/api/super_admin/campus/create", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                name,
+                code: code.toUpperCase(),
+                currentSession,
+            }),
+        });
 
-            const data = await res.json();
+        const data = await res.json();
 
-            if (!res.ok || !data.success) {
-                setMessage(data.message || "Failed");
-                setLoading(false);
-                return;
-            }
-
+        if (!data.success) {
+            setMessage(data.message);
+        } else {
             setName("");
             setCode("");
             setCurrentSession("");
             setMessage("Campus created successfully");
             fetchCampuses();
-
-        } catch (err) {
-            setMessage("Network error");
         }
 
         setLoading(false);
@@ -82,7 +60,6 @@ export default function CreateCampusPage() {
                 Super Admin – Campus Management
             </h1>
 
-            {/* FORM */}
             <div className="border p-5 rounded mb-8">
                 <h2 className="font-semibold mb-4">Create New Campus</h2>
 
@@ -91,25 +68,22 @@ export default function CreateCampusPage() {
                 )}
 
                 <input
-                    type="text"
-                    placeholder="Campus Name"
                     className="border p-2 w-full mb-3"
+                    placeholder="Campus Name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                 />
 
                 <input
-                    type="text"
-                    placeholder="Campus Code (CAMP001)"
                     className="border p-2 w-full mb-3 uppercase"
+                    placeholder="Campus Code"
                     value={code}
                     onChange={(e) => setCode(e.target.value)}
                 />
 
                 <input
-                    type="text"
-                    placeholder="Current Session (2024-2025)"
                     className="border p-2 w-full mb-4"
+                    placeholder="Current Session (2025-2026)"
                     value={currentSession}
                     onChange={(e) => setCurrentSession(e.target.value)}
                 />
@@ -117,43 +91,33 @@ export default function CreateCampusPage() {
                 <button
                     onClick={createCampus}
                     disabled={loading}
-                    className="bg-black text-white px-6 py-2 disabled:opacity-60"
+                    className="bg-black text-white px-6 py-2"
                 >
                     {loading ? "Creating..." : "Create Campus"}
                 </button>
             </div>
 
-            {/* LIST */}
-            <div>
-                <h2 className="font-semibold mb-4">All Campuses</h2>
+            <h2 className="font-semibold mb-4">All Campuses</h2>
 
-                <div className="space-y-3">
-                    {campuses.map((campus) => (
-                        <div
-                            key={campus._id}
-                            className="border p-4 rounded flex justify-between"
-                        >
-                            <div>
-                                <p className="font-medium">{campus.name}</p>
-                                <p className="text-sm text-gray-500">
-                                    {campus.code}
-                                </p>
-                                <p className="text-xs text-gray-400">
-                                    Session: {campus.currentSession}
-                                </p>
-                            </div>
-
-                            <span
-                                className={`text-sm ${campus.isActive
-                                        ? "text-green-600"
-                                        : "text-red-600"
-                                    }`}
-                            >
-                                {campus.isActive ? "Active" : "Disabled"}
-                            </span>
+            <div className="space-y-3">
+                {campuses.map((c) => (
+                    <div
+                        key={c._id}
+                        className="border p-4 rounded flex justify-between"
+                    >
+                        <div>
+                            <p className="font-medium">{c.name}</p>
+                            <p className="text-sm text-gray-500">{c.code}</p>
+                            <p className="text-xs text-gray-400">
+                                Session: {c.currentSession}
+                            </p>
                         </div>
-                    ))}
-                </div>
+
+                        <span className="text-sm text-green-600">
+                            Active
+                        </span>
+                    </div>
+                ))}
             </div>
         </div>
     );

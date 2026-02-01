@@ -12,16 +12,19 @@ export async function GET() {
 
         if (!authUser || authUser.role !== "principal") {
             return NextResponse.json(
-                { message: "Unauthorized" },
+                { success: false, message: "Unauthorized" },
                 { status: 401 }
             );
         }
 
+        // user already authenticated — no need to re-check existence
         const principal = await User.findById(authUser.id)
-            .select("name email phone address avatar campusId");
+            .select("-password")
+            .lean();
 
-        const campus = await Campus.findById(principal.campusId)
-            .select("name code location");
+        const campus = authUser.campusId
+            ? await Campus.findById(authUser.campusId).lean()
+            : null;
 
         return NextResponse.json({
             success: true,
@@ -29,11 +32,11 @@ export async function GET() {
             campus,
         });
 
-    } catch (err) {
-        console.log("PRINCIPAL ME ERROR:", err.message);
+    } catch (error) {
+        console.error("PRINCIPAL ME API ERROR:", error);
 
         return NextResponse.json(
-            { message: "Server error" },
+            { success: false, message: "Server error" },
             { status: 500 }
         );
     }

@@ -8,6 +8,10 @@ import {
   BookOpen,
   ClipboardList,
   Settings,
+  Wallet,
+  FileText,
+  History,
+  AlertCircle,
   X
 } from "lucide-react";
 
@@ -23,7 +27,6 @@ export default function PrincipalSidebar({ isOpen, onClose }) {
 
   return (
     <>
-      {/* overlay (mobile) */}
       {isOpen && (
         <div
           onClick={onClose}
@@ -47,14 +50,9 @@ export default function PrincipalSidebar({ isOpen, onClose }) {
       >
         {/* header */}
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-xl font-bold">
-            SCHOOL PANEL
-          </h1>
+          <h1 className="text-xl font-bold">SCHOOL PANEL</h1>
 
-          <button
-            onClick={onClose}
-            className="lg:hidden"
-          >
+          <button onClick={onClose} className="lg:hidden">
             <X />
           </button>
         </div>
@@ -92,12 +90,49 @@ export default function PrincipalSidebar({ isOpen, onClose }) {
             Assign Teacher To Class
           </Link>
 
-
           <Link href="/principal/attendance" onClick={onClose}
             className={linkClass("/principal/attendance")}>
             <ClipboardList size={18} />
             Attendance
           </Link>
+
+          {/* ================= fee ================= */}
+
+          <div className="pt-3 border-t border-slate-700 text-xs text-gray-400 px-4">
+            fee MANAGEMENT
+          </div>
+
+          <Link href="/principal/fee/structure" onClick={onClose}
+            className={linkClass("/principal/fee/structure")}>
+            <Wallet size={18} />
+            Fee Structure
+          </Link>
+
+          <Link href="/principal/fee/generate" onClick={onClose}
+            className={linkClass("/principal/fee/generate")}>
+            <FileText size={18} />
+            Generate Fee
+          </Link>
+
+          <Link href="/principal/fee/collect" onClick={onClose}
+            className={linkClass("/principal/fee/collect")}>
+            <Wallet size={18} />
+            Collect Fee
+          </Link>
+
+          <Link href="/principal/fee/history" onClick={onClose}
+            className={linkClass("/principal/fee/history")}>
+            <History size={18} />
+            Fee History
+          </Link>
+
+          <Link href="/principal/fee/defaulters" onClick={onClose}
+            className={linkClass("/principal/fee/defaulters")}>
+            <AlertCircle size={18} />
+            Defaulters
+          </Link>
+
+          {/* ================= END ================= */}
 
           <Link href="/principal/settings" onClick={onClose}
             className={linkClass("/principal/settings")}>

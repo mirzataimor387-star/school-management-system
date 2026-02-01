@@ -1,43 +1,71 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/utils/connectdb";
 import Student from "@/models/Student";
-import Class from "@/models/Class";
 import { getAuthUser } from "@/utils/getAuthUser";
 
-/* ============================
-   GET → principal view students
-============================ */
-export async function GET() {
-    try {
-        await dbConnect();
+/*
+====================================
+GET → Principal class-wise students
+(section ignored — fee class based)
+====================================
+*/
 
-        const authUser = await getAuthUser();
+export async function GET(req) {
+  try {
+    await dbConnect();
 
-        // 🔐 only principal
-        if (!authUser || authUser.role !== "principal") {
-            return NextResponse.json(
-                { success: false, message: "Unauthorized" },
-                { status: 401 }
-            );
-        }
+    const authUser = await getAuthUser();
 
-        const students = await Student.find({
-            campusId: authUser.campusId,
-        })
-            .populate("classId", "className section")
-            .sort({ createdAt: -1 });
-
-        return NextResponse.json({
-            success: true,
-            students,
-        });
-
-    } catch (err) {
-        console.log("PRINCIPAL STUDENTS ERROR:", err.message);
-
-        return NextResponse.json(
-            { success: false, message: "Server error" },
-            { status: 500 }
-        );
+    // 🔐 principal only
+    if (!authUser || authUser.role !== "principal") {
+      return NextResponse.json(
+        { success: false, students: [], message: "Unauthorized" },
+        { status: 401 }
+      );
     }
+
+    // ✅ classId from query
+    const { searchParams } = new URL(req.url);
+    const classId = searchParams.get("classId");
+
+    if (!classId) {
+      return NextResponse.json(
+        {
+          success: false,
+          students: [],
+          message: "classId is required",
+        },
+        { status: 400 }
+      );
+    }
+
+    // ✅ CLASS BASED (NO SECTION)
+    const students = await Student.find({
+      campusId: authUser.campusId,
+      classId,              // ← only class
+      status: "active",
+    })
+      .sort({ rollNumber: 1 })
+      .select(
+        "name fatherName rollNumber classId session status"
+      )
+      .populate("classId", "className"); // ❌ no section
+
+    return NextResponse.json({
+      success: true,
+      students,
+    });
+
+  } catch (err) {
+    console.error("PRINCIPAL STUDENTS ERROR:", err.message);
+
+    return NextResponse.json(
+      {
+        success: false,
+        students: [],
+        message: "Server error",
+      },
+      { status: 500 }
+    );
+  }
 }

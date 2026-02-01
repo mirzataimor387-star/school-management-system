@@ -6,20 +6,45 @@ import { Users } from "lucide-react";
 export default function StudentsPage() {
 
     const [students, setStudents] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const [classes, setClasses] = useState([]);
+    const [classId, setClassId] = useState("");
+
+    const [loading, setLoading] = useState(false);
     const [apiMessage, setApiMessage] = useState("");
 
     /* =========================
-       LOAD STUDENTS
+       LOAD CLASSES
     ======================== */
-    const loadStudents = async () => {
+    const loadClasses = async () => {
+        try {
+            const res = await fetch("/api/principal/classes", {
+                credentials: "include",
+            });
+
+            const data = await res.json();
+
+            if (data.success) {
+                setClasses(data.classes || []);
+            }
+        } catch (err) {
+            console.log("CLASS LOAD ERROR");
+        }
+    };
+
+    /* =========================
+       LOAD STUDENTS (CLASS WISE)
+    ======================== */
+    const loadStudents = async (cid) => {
+        if (!cid) return;
+
         try {
             setLoading(true);
             setApiMessage("");
 
-            const res = await fetch("/api/principal/students", {
-                credentials: "same-origin",
-            });
+            const res = await fetch(
+                `/api/principal/students?classId=${cid}`,
+                { credentials: "include" }
+            );
 
             const data = await res.json();
 
@@ -40,17 +65,43 @@ export default function StudentsPage() {
     };
 
     useEffect(() => {
-        loadStudents();
+        loadClasses();
     }, []);
 
-    return (
-        <div className="p-6">
+    useEffect(() => {
+        loadStudents(classId);
+    }, [classId]);
 
-            <h1 className="text-xl font-bold mb-6 flex items-center gap-2">
+    return (
+        <div className="p-6 space-y-6">
+
+            <h1 className="text-xl font-bold flex items-center gap-2">
                 <Users size={22} />
-                All Students
+                Students
             </h1>
 
+            {/* ================= CLASS SELECT ================= */}
+            <div className="bg-white p-4 rounded-lg shadow w-full md:w-80">
+                <label className="block text-sm font-medium mb-1">
+                    Select Class
+                </label>
+
+                <select
+                    value={classId}
+                    onChange={(e) => setClassId(e.target.value)}
+                    className="w-full border rounded-md px-3 py-2 text-sm"
+                >
+                    <option value="">-- Select Class --</option>
+
+                    {classes.map((c) => (
+                        <option key={c._id} value={c._id}>
+                            {c.className}
+                        </option>
+                    ))}
+                </select>
+            </div>
+
+            {/* ================= TABLE ================= */}
             <div className="overflow-x-auto">
                 <table className="w-full bg-white shadow rounded-xl overflow-hidden">
 
@@ -59,7 +110,6 @@ export default function StudentsPage() {
                             <th className="p-3 text-left">Name</th>
                             <th>Roll No</th>
                             <th>Class</th>
-                            <th>Section</th>
                             <th>Status</th>
                             <th>Session</th>
                         </tr>
@@ -67,19 +117,28 @@ export default function StudentsPage() {
 
                     <tbody>
 
+                        {/* ⏳ NO CLASS */}
+                        {!classId && (
+                            <tr>
+                                <td colSpan="5" className="p-6 text-center text-gray-500">
+                                    Please select a class
+                                </td>
+                            </tr>
+                        )}
+
                         {/* 🔄 LOADING */}
                         {loading && (
                             <tr>
-                                <td colSpan="6" className="p-6 text-center text-gray-500">
+                                <td colSpan="5" className="p-6 text-center text-gray-500">
                                     Loading students...
                                 </td>
                             </tr>
                         )}
 
-                        {/* ❌ API ERROR */}
+                        {/* ❌ ERROR */}
                         {!loading && apiMessage && (
                             <tr>
-                                <td colSpan="6" className="p-6 text-center text-red-600">
+                                <td colSpan="5" className="p-6 text-center text-red-600">
                                     {apiMessage}
                                 </td>
                             </tr>
@@ -90,48 +149,32 @@ export default function StudentsPage() {
                             students.map((s) => (
                                 <tr key={s._id} className="border-t text-sm hover:bg-gray-50">
 
-                                    <td className="p-3 font-medium">
-                                        {s.name}
-                                    </td>
+                                    <td className="p-3 font-medium">{s.name}</td>
 
-                                    <td>
-                                        {s.rollNumber}
-                                    </td>
+                                    <td>{s.rollNumber}</td>
 
-                                    <td>
-                                        {s.classId?.className || "-"}
-                                    </td>
-
-                                    <td>
-                                        {s.classId?.section || "-"}
-                                    </td>
+                                    <td>{s.classId?.className}</td>
 
                                     <td>
                                         <span
-                                            className={`
-                        px-2 py-1 rounded text-xs font-medium
+                                            className={`px-2 py-1 rounded text-xs font-medium
                         ${s.status === "active"
                                                     ? "bg-green-100 text-green-700"
-                                                    : s.status === "left"
-                                                        ? "bg-red-100 text-red-700"
-                                                        : "bg-gray-100 text-gray-700"}
-                      `}
+                                                    : "bg-red-100 text-red-700"}`}
                                         >
                                             {s.status}
                                         </span>
                                     </td>
 
-                                    <td>
-                                        {s.session}
-                                    </td>
+                                    <td>{s.session}</td>
                                 </tr>
                             ))}
 
                         {/* ⚠️ EMPTY */}
-                        {!loading && !apiMessage && students.length === 0 && (
+                        {!loading && !apiMessage && classId && students.length === 0 && (
                             <tr>
-                                <td colSpan="6" className="p-6 text-center text-gray-500">
-                                    No students found
+                                <td colSpan="5" className="p-6 text-center text-gray-500">
+                                    No students found in this class
                                 </td>
                             </tr>
                         )}

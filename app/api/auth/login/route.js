@@ -10,28 +10,25 @@ export async function POST(req) {
 
     const { email, password } = await req.json();
 
-    const cleanEmail = email.trim().toLowerCase();
+    if (!email || !password) {
+      return NextResponse.json(
+        { message: "Email and password required" },
+        { status: 400 }
+      );
+    }
 
-    console.log("📩 EMAIL FROM UI:", cleanEmail);
-    console.log("🔑 PASSWORD FROM UI:", password);
+    const cleanEmail = email.trim().toLowerCase();
 
     const user = await User.findOne({ email: cleanEmail });
 
-    console.log("👤 USER FROM DB:", user);
-
     if (!user) {
-      console.log("❌ USER NOT FOUND IN DB");
       return NextResponse.json(
         { message: "Invalid credentials" },
         { status: 401 }
       );
     }
 
-    console.log("🔐 HASH IN DB:", user.password);
-
     const isMatch = await comparePassword(password, user.password);
-
-    console.log("✅ PASSWORD MATCH:", isMatch);
 
     if (!isMatch) {
       return NextResponse.json(
@@ -61,7 +58,6 @@ export async function POST(req) {
 
   } catch (err) {
     console.log("🔥 LOGIN ERROR:", err);
-
     return NextResponse.json(
       { message: "Server error" },
       { status: 500 }

@@ -4,12 +4,12 @@ import mongoose from "mongoose";
 import dbConnect from "@/utils/connectdb";
 import { getAuthUser } from "@/utils/getAuthUser";
 
-// ✅ MUST import populated models
+// ✅ populated models
 import FeeVoucher from "@/models/FeeVoucher";
 import Student from "@/models/Student";
 import Class from "@/models/Class";
 
-export async function GET(req) {
+export async function GET(request) {
   try {
     // ===============================
     // DB CONNECT
@@ -17,11 +17,9 @@ export async function GET(req) {
     await dbConnect();
 
     // ===============================
-    // AUTH
+    // AUTH ✅ FIXED
     // ===============================
-    export async function GET(req) {
-  const authUser = await getAuthUser(req);
-}
+    const authUser = await getAuthUser(request);
 
     if (!authUser || authUser.role !== "principal") {
       return NextResponse.json(
@@ -37,7 +35,7 @@ export async function GET(req) {
     // ===============================
     // FILTERS (optional)
     // ===============================
-    const { searchParams } = new URL(req.url);
+    const { searchParams } = new URL(request.url);
 
     const classId = searchParams.get("classId");
     const month = searchParams.get("month");

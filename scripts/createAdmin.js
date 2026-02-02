@@ -4,9 +4,8 @@ import bcrypt from "bcryptjs";
 import User from "../models/User.js";
 
 
-// 🔥 IMPORTANT: because file is inside /scripts
-dotenv.config({ path: ".env" });
-
+// 🔥 FIXED PATH
+dotenv.config({ path: "../.env" });
 async function createAdmin() {
   try {
     // safety check
@@ -36,7 +35,7 @@ async function createAdmin() {
       name: "Super Admin",
       email: "superadmin@asian.com",
       password: hashedPassword,
-      role: "super_admin",
+      role: "superadmin",
     });
 
 

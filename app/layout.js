@@ -10,7 +10,7 @@ export default function RootLayout({ children }) {
 
   // 🔒 dashboard routes
   const isProtectedRoute =
-    pathname.startsWith("/super_admin") ||
+    pathname.startsWith("/superadmin") ||
     pathname.startsWith("/principal") ||
     pathname.startsWith("/principal") ||
     pathname.startsWith("/teacher") ||

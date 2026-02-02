@@ -37,5 +37,6 @@ classSchema.index(
   { unique: true }
 );
 
-export default mongoose.models.Class ||
-  mongoose.model("Class", classSchema);
+// ✅ NAMED EXPORT (IMPORTANT)
+export const Class =
+  mongoose.models.Class || mongoose.model("Class", classSchema);

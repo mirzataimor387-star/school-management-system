@@ -19,8 +19,8 @@ export function middleware(req) {
 
         // 🔴 super admin
         if (
-            path.startsWith("/super_admin") &&
-            user.role !== "super_admin"
+            path.startsWith("/superadmin") &&
+            user.role !== "superadmin"
         ) {
             return NextResponse.redirect(
                 new URL("/unauthorized", req.url)
@@ -55,7 +55,7 @@ export function middleware(req) {
 
 export const config = {
     matcher: [
-        "/super_admin/:path*",
+        "/superadmin/:path*",
         "/principal/:path*",
         "/teacher/:path*",
     ],

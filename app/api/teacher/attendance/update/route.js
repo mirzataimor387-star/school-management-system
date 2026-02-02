@@ -7,7 +7,9 @@ export async function PATCH(req) {
     try {
         await dbConnect();
 
-        const authUser = await getAuthUser();
+        export async function GET(req) {
+  const authUser = await getAuthUser(req);
+}
         if (!authUser || authUser.role !== "teacher") {
             return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
         }

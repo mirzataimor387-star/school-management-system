@@ -114,17 +114,17 @@ export default function PrincipalSidebar({ isOpen, onClose }) {
             Generate Fee
           </Link>
 
-          <Link href="/principal/fee/collect" onClick={onClose}
+          {/* <Link href="/principal/fee/collect" onClick={onClose}
             className={linkClass("/principal/fee/collect")}>
             <Wallet size={18} />
             Collect Fee
-          </Link>
+          </Link> */}
 
-          <Link href="/principal/fee/history" onClick={onClose}
+          {/* <Link href="/principal/fee/history" onClick={onClose}
             className={linkClass("/principal/fee/history")}>
             <History size={18} />
             Fee History
-          </Link>
+          </Link> */}
 
           <Link href="/principal/fee/defaulters" onClick={onClose}
             className={linkClass("/principal/fee/defaulters")}>

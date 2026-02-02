@@ -9,7 +9,9 @@ export async function GET() {
   try {
     await dbConnect();
 
-    const authUser = await getAuthUser();
+    export async function GET(req) {
+  const authUser = await getAuthUser(req);
+}
 
     if (!authUser || authUser.role !== "teacher") {
       return NextResponse.json(

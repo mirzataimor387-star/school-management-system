@@ -2,51 +2,43 @@ import { NextResponse } from "next/server";
 import { getAuthUser } from "./getAuthUser";
 
 /**
- * @param roles allowed roles
- * @param options { campusKey, classKey }
+ * roles: ["superadmin", "principal", "teacher"]
+ * options: { campus: true }
  */
-export function withRBAC(roles = [], options = {}) {
-    return async (req, handler) => {
-        const user = await getAuthUser(req);
+export async function withRBAC(roles = [], options = {}) {
+  const user = await getAuthUser();
 
-        if (!user) {
-            return NextResponse.json(
-                { message: "Unauthorized" },
-                { status: 401 }
-            );
-        }
-
-        // role check
-        if (!roles.includes(user.role)) {
-            return NextResponse.json(
-                { message: "Forbidden" },
-                { status: 403 }
-            );
-        }
-
-        // super admin bypass
-        if (user.role === "super_admin") {
-            return handler(req, user);
-        }
-
-        const { campusId } = user;
-
-        // campus guard
-        if (options.campusKey) {
-            const body = await req.json();
-            const resourceCampusId = body[options.campusKey];
-
-            if (
-                resourceCampusId &&
-                resourceCampusId.toString() !== campusId.toString()
-            ) {
-                return NextResponse.json(
-                    { message: "Campus access denied" },
-                    { status: 403 }
-                );
-            }
-        }
-
-        return handler(req, user);
+  if (!user) {
+    return {
+      error: NextResponse.json(
+        { success: false, message: "Unauthorized" },
+        { status: 401 }
+      ),
     };
+  }
+
+  if (!roles.includes(user.role)) {
+    return {
+      error: NextResponse.json(
+        { success: false, message: "Forbidden" },
+        { status: 403 }
+      ),
+    };
+  }
+
+  // superadmin bypass
+  if (user.role === "superadmin") {
+    return { user };
+  }
+
+  if (options.campus && !user.campusId) {
+    return {
+      error: NextResponse.json(
+        { success: false, message: "Campus missing" },
+        { status: 403 }
+      ),
+    };
+  }
+
+  return { user };
 }

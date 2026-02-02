@@ -18,7 +18,9 @@ export async function POST(req) {
     // ===============================
     // AUTH
     // ===============================
-    const authUser = await getAuthUser();
+    export async function GET(req) {
+  const authUser = await getAuthUser(req);
+}
 
     if (!authUser || authUser.role !== "principal") {
       return NextResponse.json(

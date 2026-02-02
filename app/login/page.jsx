@@ -1,71 +1,79 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff } from "lucide-react";
 import Loader from "@/components/ui/Loader";
-import { delay } from "@/utils/delay";
 
 export default function LoginPage() {
   const router = useRouter();
 
-  const [quote, setQuote] = useState(null);
-  const [loadingQuote, setLoadingQuote] = useState(true);
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    fetch("/api/quotes", { cache: "no-store" })
-      .then((r) => r.json())
-      .then((d) => {
-        setQuote(d);
-        setLoadingQuote(false);
-      })
-      .catch(() => setLoadingQuote(false));
-  }, []);
-
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    setError("");
     setLoading(true);
+    setError("");
 
     try {
-      const [res] = await Promise.all([
-        fetch("/api/auth/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ email, password }),
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          email,
+          password,
         }),
-        delay(3000),
-      ]);
+      });
 
-      const data = await res.json();
+      let data = {};
 
-      if (!res.ok) {
-        setError(data.message || "Login failed");
+      try {
+        data = await res.json();
+      } catch {
+        setError("Invalid server response");
         setLoading(false);
         return;
       }
 
-      if (data.role === "super_admin") {
-        router.replace("/super_admin");
-      } else if (data.role === "principal") {
-        router.replace("/principal");
-      } else if (data.role === "teacher") {
-        router.replace("/teacher");
-      } else {
-        setError("Unauthorized account");
+      // ❌ API-level error
+      if (!res.ok) {
+        const errorCode = data.error || "UNKNOWN_ERROR";
+        const errorMsg = data.message || "Login failed";
+
+        setError(`${errorCode} : ${errorMsg}`);
+        setLoading(false);
+        return;
+      }
+
+      // ✅ SUCCESS — role routing
+      switch (data.role) {
+        case "superadmin":
+          router.replace("/superadmin");
+          break;
+
+        case "principal":
+          router.replace("/principal");
+          break;
+
+        case "teacher":
+          router.replace("/teacher");
+          break;
+
+        default:
+          setError(
+            `INVALID_ROLE : '${data.role}' not allowed`
+          );
       }
 
     } catch (err) {
-      setError("Network error");
+      setError("NETWORK_ERROR : Server not reachable");
     }
 
     setLoading(false);
@@ -73,7 +81,6 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
-
       <form
         onSubmit={handleSubmit}
         className="bg-white p-8 rounded-lg shadow-md w-full max-w-md"
@@ -83,48 +90,44 @@ export default function LoginPage() {
         </h2>
 
         {error && (
-          <p className="bg-red-100 text-red-600 p-2 mb-4 rounded text-sm">
+          <div className="bg-red-100 text-red-700 p-3 mb-4 rounded text-sm">
             {error}
-          </p>
+          </div>
         )}
 
         <input
           type="email"
-          placeholder="Email"
           className="border p-3 w-full mb-4 rounded"
+          placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
         />
 
-        <div className="relative mb-6">
-          <input
-            type={showPassword ? "text" : "password"}
-            placeholder="Password"
-            className="border p-3 w-full rounded pr-10"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-
-          <button
-            type="button"
-            onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-3 top-3 text-gray-500"
-          >
-            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-          </button>
-        </div>
+        <input
+          type="password"
+          className="border p-3 w-full mb-6 rounded"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+        />
 
         <button
           disabled={loading}
           className={`w-full py-3 rounded text-white transition
-            ${loading
-              ? "bg-blue-400 cursor-not-allowed"
-              : "bg-blue-600 hover:bg-blue-700"}
+            ${
+              loading
+                ? "bg-blue-400 cursor-not-allowed"
+                : "bg-blue-600 hover:bg-blue-700"
+            }
           `}
         >
-          {loading ? <Loader text="Signing in..." /> : "Login"}
+          {loading ? (
+            <Loader text="Signing in..." />
+          ) : (
+            "Login"
+          )}
         </button>
       </form>
     </div>

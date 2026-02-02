@@ -1,25 +1,65 @@
 import jwt from "jsonwebtoken";
-import User from "@/models/User";
-import dbConnect from "./connectdb";
+import mongoose from "mongoose";
 import { cookies } from "next/headers";
 
+import dbConnect from "@/utils/connectdb";
+import User from "@/models/User";
+import Campus from "@/models/Campus";
+
+/* =========================================
+   ROLE NORMALIZER (OPTIONAL BUT CLEAN)
+========================================= */
+export function normalizeRole(role) {
+  return role?.toLowerCase().replace(/[_\s-]/g, "");
+}
+
+/* =========================================
+   FUTURE-PROOF AUTH USER
+========================================= */
 export async function getAuthUser() {
-  await dbConnect();
+  try {
+    await dbConnect();
 
-  const token = cookies().get("token")?.value;
-  if (!token) return null;
+    const cookieStore = cookies();
+    const token = cookieStore.get("token")?.value;
 
-  const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (!token) return null;
 
-  const user = await User.findById(decoded.id).select(
-    "_id role campusId"
-  );
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-  if (!user) return null;
+    // 🔒 Always fetch fresh user from DB
+    const user = await User.findById(decoded.id)
+      .populate({
+        path: "campusId",
+        model: Campus,
+        options: { lean: true },
+      })
+      .lean();
 
-  return {
-    id: user._id.toString(),
-    role: user.role,
-    campusId: user.campusId?.toString() || null,
-  };
+    if (!user) return null;
+
+    return {
+      // 🔑 identity
+      id: user._id.toString(),
+      role: normalizeRole(user.role),
+
+      // 👤 base user
+      user,
+
+      // 🏫 optional context (null for superadmin etc.)
+      campus: user.campusId || null,
+
+      // 🧠 helpers
+      isSuperAdmin: normalizeRole(user.role) === "superadmin",
+      isPrincipal: normalizeRole(user.role) === "principal",
+      isTeacher: normalizeRole(user.role) === "teacher",
+
+      // raw token data (if ever needed)
+      tokenPayload: decoded,
+    };
+
+  } catch (error) {
+    console.error("getAuthUser error:", error);
+    return null;
+  }
 }

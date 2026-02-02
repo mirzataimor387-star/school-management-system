@@ -11,18 +11,18 @@ export async function GET() {
   try {
     await dbConnect();
 
-    const authUser = await getAuthUser();
+    const auth = await getAuthUser();
 
-    if (!authUser || authUser.role !== "principal") {
+    if (!auth || !auth.isPrincipal) {
       return NextResponse.json(
-        { message: "Unauthorized" },
+        { success: false, message: "Unauthorized" },
         { status: 401 }
       );
     }
 
     const teachers = await User.find({
       role: "teacher",
-      campusId: authUser.campusId,
+      campusId: auth.campus._id,
     }).select("-password");
 
     return NextResponse.json({
@@ -30,10 +30,11 @@ export async function GET() {
       teachers,
     });
 
-  } catch (err) {
-    console.log("GET TEACHERS ERROR:", err.message);
+  } catch (error) {
+    console.error("GET TEACHERS ERROR:", error);
+
     return NextResponse.json(
-      { message: "Server error" },
+      { success: false, message: "Server error" },
       { status: 500 }
     );
   }
@@ -46,11 +47,11 @@ export async function POST(req) {
   try {
     await dbConnect();
 
-    const authUser = await getAuthUser();
+    const auth = await getAuthUser();
 
-    if (!authUser || authUser.role !== "principal") {
+    if (!auth || !auth.isPrincipal) {
       return NextResponse.json(
-        { message: "Unauthorized" },
+        { success: false, message: "Unauthorized" },
         { status: 401 }
       );
     }
@@ -60,7 +61,7 @@ export async function POST(req) {
     const exists = await User.findOne({ email });
     if (exists) {
       return NextResponse.json(
-        { message: "Teacher already exists" },
+        { success: false, message: "Teacher already exists" },
         { status: 400 }
       );
     }
@@ -72,7 +73,7 @@ export async function POST(req) {
       email,
       password: hashedPassword,
       role: "teacher",
-      campusId: authUser.campusId,
+      campusId: auth.campus._id,
       phone,
       address,
     });
@@ -82,10 +83,11 @@ export async function POST(req) {
       teacher,
     });
 
-  } catch (err) {
-    console.log("ADD TEACHER ERROR:", err.message);
+  } catch (error) {
+    console.error("ADD TEACHER ERROR:", error);
+
     return NextResponse.json(
-      { message: "Server error" },
+      { success: false, message: "Server error" },
       { status: 500 }
     );
   }
@@ -98,11 +100,11 @@ export async function PUT(req) {
   try {
     await dbConnect();
 
-    const authUser = await getAuthUser();
+    const auth = await getAuthUser();
 
-    if (!authUser || authUser.role !== "principal") {
+    if (!auth || !auth.isPrincipal) {
       return NextResponse.json(
-        { message: "Unauthorized" },
+        { success: false, message: "Unauthorized" },
         { status: 401 }
       );
     }
@@ -119,12 +121,12 @@ export async function PUT(req) {
     const teacher = await User.findOne({
       _id: teacherId,
       role: "teacher",
-      campusId: authUser.campusId,
+      campusId: auth.campus._id,
     });
 
     if (!teacher) {
       return NextResponse.json(
-        { message: "Teacher not found" },
+        { success: false, message: "Teacher not found" },
         { status: 404 }
       );
     }
@@ -145,27 +147,28 @@ export async function PUT(req) {
       message: "Teacher updated successfully",
     });
 
-  } catch (err) {
-    console.log("UPDATE TEACHER ERROR:", err.message);
+  } catch (error) {
+    console.error("UPDATE TEACHER ERROR:", error);
+
     return NextResponse.json(
-      { message: "Server error" },
+      { success: false, message: "Server error" },
       { status: 500 }
     );
   }
 }
 
 /* ============================
-   DELETE → HARD DELETE
+   DELETE → hard delete
 ============================ */
 export async function DELETE(req) {
   try {
     await dbConnect();
 
-    const authUser = await getAuthUser();
+    const auth = await getAuthUser();
 
-    if (!authUser || authUser.role !== "principal") {
+    if (!auth || !auth.isPrincipal) {
       return NextResponse.json(
-        { message: "Unauthorized" },
+        { success: false, message: "Unauthorized" },
         { status: 401 }
       );
     }
@@ -175,12 +178,12 @@ export async function DELETE(req) {
     const teacher = await User.findOneAndDelete({
       _id: teacherId,
       role: "teacher",
-      campusId: authUser.campusId,
+      campusId: auth.campus._id,
     });
 
     if (!teacher) {
       return NextResponse.json(
-        { message: "Teacher not found" },
+        { success: false, message: "Teacher not found" },
         { status: 404 }
       );
     }
@@ -190,10 +193,11 @@ export async function DELETE(req) {
       message: "Teacher permanently deleted",
     });
 
-  } catch (err) {
-    console.log("DELETE TEACHER ERROR:", err.message);
+  } catch (error) {
+    console.error("DELETE TEACHER ERROR:", error);
+
     return NextResponse.json(
-      { message: "Server error" },
+      { success: false, message: "Server error" },
       { status: 500 }
     );
   }

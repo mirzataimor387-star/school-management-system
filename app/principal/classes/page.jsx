@@ -65,24 +65,38 @@ export default function ClassesPage() {
        CREATE CLASS
     ======================== */
     const createClass = async () => {
-        await fetch("/api/principal/classes", {
-            method: "POST",
-            credentials: "same-origin",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(form),
-        });
+        try {
+            const res = await fetch("/api/principal/classes", {
+                method: "POST",
+                credentials: "same-origin",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(form),
+            });
 
-        setForm({
-            className: "",
-            section: "",
-            session: "",
-        });
+            const data = await res.json();
 
-        setOpen(false);
-        loadClasses();
+            if (!data.success) {
+                setApiMessage(data.message || "Failed to create class");
+                return;
+            }
+
+            // ✅ SUCCESS
+            setForm({
+                className: "",
+                section: "",
+                session: "",
+            });
+
+            setOpen(false);
+            loadClasses();
+
+        } catch (err) {
+            setApiMessage("Server not responding");
+        }
     };
+
 
     return (
         <>

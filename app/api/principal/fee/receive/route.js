@@ -12,7 +12,9 @@ export async function POST(req) {
     try {
         await dbConnect();
 
-        const authUser = await getAuthUser();
+        export async function GET(req) {
+  const authUser = await getAuthUser(req);
+}
 
         // 🔐 principal only
         if (!authUser || authUser.role !== "principal") {

@@ -9,17 +9,20 @@ GET → Principal class-wise students
 (section ignored — fee class based)
 ====================================
 */
-
 export async function GET(req) {
   try {
     await dbConnect();
 
-    const authUser = await getAuthUser();
+    // ✅ AUTH (future-proof)
+    const auth = await getAuthUser();
 
-    // 🔐 principal only
-    if (!authUser || authUser.role !== "principal") {
+    if (!auth || !auth.isPrincipal || !auth.campus) {
       return NextResponse.json(
-        { success: false, students: [], message: "Unauthorized" },
+        {
+          success: false,
+          students: [],
+          message: "Unauthorized",
+        },
         { status: 401 }
       );
     }
@@ -39,25 +42,23 @@ export async function GET(req) {
       );
     }
 
-    // ✅ CLASS BASED (NO SECTION)
+    // ✅ CLASS-BASED (NO SECTION)
     const students = await Student.find({
-      campusId: authUser.campusId,
-      classId,              // ← only class
+      campusId: auth.campus._id, // 🔒 principal campus
+      classId,
       status: "active",
     })
       .sort({ rollNumber: 1 })
-      .select(
-        "name fatherName rollNumber classId session status"
-      )
-      .populate("classId", "className"); // ❌ no section
+      .select("name fatherName rollNumber classId session status")
+      .populate("classId", "className"); // ✅ no section
 
     return NextResponse.json({
       success: true,
       students,
     });
 
-  } catch (err) {
-    console.error("PRINCIPAL STUDENTS ERROR:", err.message);
+  } catch (error) {
+    console.error("PRINCIPAL STUDENTS ERROR:", error);
 
     return NextResponse.json(
       {

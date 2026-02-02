@@ -10,9 +10,7 @@ export async function GET(request) {
     try {
         await dbConnect();
 
-        export async function GET(req) {
-  const authUser = await getAuthUser(req);
-}
+        const authUser = await getAuthUser(request);
 
         if (!authUser || authUser.role !== "teacher") {
             return NextResponse.json(
@@ -46,10 +44,7 @@ export async function GET(request) {
             );
         }
 
-        // ✅ FIXED: remove session filter
-        const students = await Student.find({
-            classId,
-        });
+        const students = await Student.find({ classId });
 
         const startDate = `${month}-01`;
         const endDate = `${month}-31`;
@@ -57,10 +52,7 @@ export async function GET(request) {
         const attendanceList = await Attendance.find({
             classId,
             session,
-            date: {
-                $gte: startDate,
-                $lte: endDate,
-            },
+            date: { $gte: startDate, $lte: endDate },
         });
 
         const report = students.map((stu) => {
@@ -105,7 +97,7 @@ export async function GET(request) {
         return NextResponse.json({ report });
 
     } catch (error) {
-        console.log("MONTHLY ATTENDANCE ERROR:", error);
+        console.error("MONTHLY ATTENDANCE ERROR:", error);
         return NextResponse.json(
             { message: "Server error" },
             { status: 500 }

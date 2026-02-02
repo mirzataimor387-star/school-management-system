@@ -1,5 +1,5 @@
 import { withRBAC } from "@/utils/withRBAC";
-import Class from "@/models/Class";
+import { Class } from "@/models/Class";
 import dbConnect from "@/utils/connectdb";
 import { NextResponse } from "next/server";
 

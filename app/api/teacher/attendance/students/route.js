@@ -5,16 +5,14 @@ import { getAuthUser } from "@/utils/getAuthUser";
 import Attendance from "@/models/Attendance";
 import Class from "@/models/Class";
 
-/* =====================================================
-   ✅ GET — check today's attendance
-===================================================== */
+/* ===============================
+   GET — check today's attendance
+================================ */
 export async function GET(request) {
   try {
     await dbConnect();
 
-    export async function GET(req) {
-  const authUser = await getAuthUser(req);
-}
+    const authUser = await getAuthUser(request);
 
     if (!authUser || authUser.role !== "teacher") {
       return NextResponse.json(
@@ -24,7 +22,6 @@ export async function GET(request) {
     }
 
     const { searchParams } = new URL(request.url);
-
     const classId = searchParams.get("classId");
     const date = searchParams.get("date");
     const session = searchParams.get("session");
@@ -36,7 +33,6 @@ export async function GET(request) {
       );
     }
 
-    // 🔒 verify teacher owns class
     const cls = await Class.findOne({
       _id: classId,
       classTeacher: authUser.id,
@@ -49,7 +45,6 @@ export async function GET(request) {
       );
     }
 
-    // 🔍 find attendance
     const attendance = await Attendance.findOne({
       classId,
       session,
@@ -60,26 +55,10 @@ export async function GET(request) {
       return NextResponse.json({ attendance: null });
     }
 
-    const students = attendance.records.map(r => ({
-      _id: r.studentId._id,
-      name: r.studentId.name,
-      rollNumber: r.studentId.rollNumber,
-    }));
-
-    return NextResponse.json({
-      attendance: {
-        _id: attendance._id,
-        records: attendance.records.map(r => ({
-          studentId: r.studentId._id.toString(),
-          status: r.status,
-        })),
-        students,
-      },
-    });
+    return NextResponse.json({ attendance });
 
   } catch (err) {
-    console.log("ATTENDANCE GET ERROR:", err);
-
+    console.error("ATTENDANCE GET ERROR:", err);
     return NextResponse.json(
       { message: "Server error" },
       { status: 500 }
@@ -87,16 +66,14 @@ export async function GET(request) {
   }
 }
 
-/* =====================================================
-   ✅ POST — mark attendance (only once)
-===================================================== */
+/* ===============================
+   POST — mark attendance
+================================ */
 export async function POST(request) {
   try {
     await dbConnect();
 
-    export async function GET(req) {
-  const authUser = await getAuthUser(req);
-}
+    const authUser = await getAuthUser(request);
 
     if (!authUser || authUser.role !== "teacher") {
       return NextResponse.json(
@@ -105,8 +82,7 @@ export async function POST(request) {
       );
     }
 
-    const body = await request.json();
-    const { classId, session, date, records } = body;
+    const { classId, session, date, records } = await request.json();
 
     if (!classId || !session || !date || !records?.length) {
       return NextResponse.json(
@@ -115,7 +91,6 @@ export async function POST(request) {
       );
     }
 
-    // 🔒 verify teacher owns class
     const cls = await Class.findOne({
       _id: classId,
       classTeacher: authUser.id,
@@ -128,7 +103,6 @@ export async function POST(request) {
       );
     }
 
-    // ❌ duplicate attendance protection
     const alreadyMarked = await Attendance.findOne({
       classId,
       session,
@@ -157,8 +131,7 @@ export async function POST(request) {
     });
 
   } catch (err) {
-    console.log("ATTENDANCE POST ERROR:", err);
-
+    console.error("ATTENDANCE POST ERROR:", err);
     return NextResponse.json(
       { message: "Server error" },
       { status: 500 }

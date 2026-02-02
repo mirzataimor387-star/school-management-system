@@ -3,13 +3,11 @@ import dbConnect from "@/utils/connectdb";
 import { getAuthUser } from "@/utils/getAuthUser";
 import Attendance from "@/models/Attendance";
 
-export async function GET() {
+export async function GET(req) {
     try {
         await dbConnect();
 
-        export async function GET(req) {
-  const authUser = await getAuthUser(req);
-}
+        const authUser = await getAuthUser(req);
 
         if (!authUser || authUser.role !== "teacher") {
             return NextResponse.json(
@@ -35,8 +33,7 @@ export async function GET() {
                 r => r.status === "late"
             ).length;
 
-            // ✅ late is considered present
-            const present = presentOnly + late;
+            const present = presentOnly + late; // late counted as present
 
             const absent = a.records.filter(
                 r => r.status === "absent"
@@ -50,10 +47,10 @@ export async function GET() {
                 ...a.toObject(),
                 summary: {
                     total,
-                    present, // includes late
+                    present,
                     absent,
                     leave,
-                    late,    // shown separately
+                    late,
                 },
             };
         });
@@ -61,7 +58,7 @@ export async function GET() {
         return NextResponse.json({ attendance: formatted });
 
     } catch (error) {
-        console.log("ATTENDANCE HISTORY ERROR:", error);
+        console.error("ATTENDANCE HISTORY ERROR:", error);
 
         return NextResponse.json(
             { message: "Server error" },

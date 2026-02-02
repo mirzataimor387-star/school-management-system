@@ -5,13 +5,14 @@ import { getAuthUser } from "@/utils/getAuthUser";
 import Student from "@/models/Student";
 import Class from "@/models/Class";
 
-export async function GET() {
+export async function GET(request) {
   try {
     await dbConnect();
 
-    export async function GET(req) {
-  const authUser = await getAuthUser(req);
-}
+    // ===============================
+    // AUTH ✅ FIXED
+    // ===============================
+    const authUser = await getAuthUser(request);
 
     if (!authUser || authUser.role !== "teacher") {
       return NextResponse.json(
@@ -25,7 +26,7 @@ export async function GET() {
       classTeacher: authUser.id,
     });
 
-    const classIds = classes.map(c => c._id);
+    const classIds = classes.map((c) => c._id);
 
     // ✅ all students of teacher
     const students = await Student.find({
@@ -38,7 +39,7 @@ export async function GET() {
     return NextResponse.json({ students });
 
   } catch (err) {
-    console.log("TEACHER STUDENTS ERROR:", err);
+    console.error("TEACHER STUDENTS ERROR:", err);
 
     return NextResponse.json(
       { message: "Server error" },

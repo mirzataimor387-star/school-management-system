@@ -10,9 +10,10 @@ export async function GET(request) {
     try {
         await dbConnect();
 
-        export async function GET(req) {
-  const authUser = await getAuthUser(req);
-}
+        // ===============================
+        // AUTH ✅ FIXED
+        // ===============================
+        const authUser = await getAuthUser(request);
 
         // 🔒 only super admin
         if (!authUser || authUser.role !== "super-admin") {
@@ -108,7 +109,8 @@ export async function GET(request) {
         });
 
     } catch (err) {
-        console.log("SUPER ADMIN ATTENDANCE ERROR:", err);
+        console.error("SUPER ADMIN ATTENDANCE ERROR:", err);
+
         return NextResponse.json(
             { message: "Server error" },
             { status: 500 }

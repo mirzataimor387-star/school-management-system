@@ -5,15 +5,16 @@ import { getAuthUser } from "@/utils/getAuthUser";
 import Class from "@/models/Class";
 import Student from "@/models/Student";
 import User from "@/models/User";
-import Campus from "@/models/Campus"; // ✅ ADD THIS
+import Campus from "@/models/Campus";
 
-export async function GET() {
+export async function GET(request) {
     try {
         await dbConnect();
 
-        export async function GET(req) {
-  const authUser = await getAuthUser(req);
-}
+        // ===============================
+        // AUTH ✅ FIXED
+        // ===============================
+        const authUser = await getAuthUser(request);
 
         if (!authUser || authUser.role !== "teacher") {
             return NextResponse.json(
@@ -64,12 +65,12 @@ export async function GET() {
             assigned: true,
             teacherName: teacher.name,
             avatar: teacher.avatar,
-            campusCode: campus?.code || null, // ✅ THIS FIXES UI
+            campusCode: campus?.code || null,
             classes: result,
         });
 
     } catch (err) {
-        console.log("TEACHER MY CLASS ERROR:", err.message);
+        console.error("TEACHER MY CLASS ERROR:", err);
 
         return NextResponse.json(
             { message: "Server error" },

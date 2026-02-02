@@ -8,13 +8,14 @@ import Class from "@/models/Class";
 
 import { getAuthUser } from "@/utils/getAuthUser";
 
-export async function POST(req) {
+export async function POST(request) {
     try {
         await dbConnect();
 
-        export async function GET(req) {
-  const authUser = await getAuthUser(req);
-}
+        // ===============================
+        // AUTH ✅ FIXED
+        // ===============================
+        const authUser = await getAuthUser(request);
 
         // 🔐 principal only
         if (!authUser || authUser.role !== "principal") {
@@ -24,13 +25,14 @@ export async function POST(req) {
             );
         }
 
-        const body = await req.json();
-
+        // ===============================
+        // BODY
+        // ===============================
         const {
             voucherId,
             receivedAmount,
             receivedDate,
-        } = body;
+        } = await request.json();
 
         // ===============================
         // VALIDATION

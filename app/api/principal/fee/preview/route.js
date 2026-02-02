@@ -8,7 +8,7 @@ import Student from "@/models/Student";
 import FeeStructure from "@/models/FeeStructure";
 import StudentFeeAdjustment from "@/models/StudentFeeAdjustment";
 
-export async function POST(req) {
+export async function POST(request) {
   try {
     // ===============================
     // DB CONNECT
@@ -16,11 +16,9 @@ export async function POST(req) {
     await dbConnect();
 
     // ===============================
-    // AUTH
+    // AUTH  ✅ FIXED
     // ===============================
-    export async function GET(req) {
-  const authUser = await getAuthUser(req);
-}
+    const authUser = await getAuthUser(request);
 
     if (!authUser || authUser.role !== "principal") {
       return NextResponse.json(
@@ -36,9 +34,7 @@ export async function POST(req) {
     // ===============================
     // BODY
     // ===============================
-    const body = await req.json();
-
-    const { classId, month, year } = body;
+    const { classId, month, year } = await request.json();
 
     // ===============================
     // VALIDATION
@@ -126,7 +122,6 @@ export async function POST(req) {
     });
 
     const adjustmentMap = {};
-
     for (const adj of adjustments) {
       adjustmentMap[adj.studentId.toString()] = adj;
     }
@@ -134,7 +129,7 @@ export async function POST(req) {
     // ===============================
     // PREVIEW BUILD
     // ===============================
-    const preview = students.map(student => {
+    const preview = students.map((student) => {
       const adj = adjustmentMap[student._id.toString()] || {};
 
       const baseFee = Number(structure.monthlyFee);

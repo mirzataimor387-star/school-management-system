@@ -3,13 +3,11 @@ import dbConnect from "@/utils/connectdb";
 import { getAuthUser } from "@/utils/getAuthUser";
 import Class from "@/models/Class";
 
-export async function GET() {
+export async function GET(request) {
   try {
     await dbConnect();
 
-    export async function GET(req) {
-  const authUser = await getAuthUser(req);
-}
+    const authUser = await getAuthUser(request);
 
     if (!authUser || authUser.role !== "teacher") {
       return NextResponse.json(
@@ -19,14 +17,13 @@ export async function GET() {
     }
 
     const classes = await Class.find({
-      classTeacher: authUser.id, // ✅ REAL ObjectId
+      classTeacher: authUser.id,
     });
 
     return NextResponse.json(classes);
 
   } catch (err) {
-    console.log("CLASSES ERROR:", err);
-
+    console.error("CLASSES ERROR:", err);
     return NextResponse.json(
       { message: "Server error" },
       { status: 500 }

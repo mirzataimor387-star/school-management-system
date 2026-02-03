@@ -12,130 +12,60 @@ export async function POST(req) {
   let session;
 
   try {
-    // ===============================
-    // DB CONNECT
-    // ===============================
     await dbConnect();
 
-    // ===============================
-    // AUTH
-    // ===============================
-    const user = await getAuthUser();
-
+    const user = await getAuthUser(req);
     if (!user || user.role !== "principal") {
       return NextResponse.json(
-        {
-          success: false,
-          message: "Unauthorized access",
-        },
+        { success: false, message: "Unauthorized" },
         { status: 401 }
       );
     }
 
-    // ===============================
-    // BODY
-    // ===============================
-    const body = await req.json();
-
-    const {
-      classId,
-      students = [],
-      month,
-      year,
-    } = body;
-
-    // ===============================
-    // VALIDATION
-    // ===============================
-    if (!classId || !mongoose.Types.ObjectId.isValid(classId)) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Invalid or missing classId",
-        },
-        { status: 400 }
-      );
-    }
+    const { classId, students = [], month, year } = await req.json();
 
     const monthNum = Number(month);
     const yearNum = Number(year);
 
     if (
+      !classId ||
+      !mongoose.Types.ObjectId.isValid(classId) ||
       !monthNum ||
-      monthNum < 1 ||
-      monthNum > 12 ||
-      !yearNum ||
-      yearNum < 2000
+      !yearNum
     ) {
       return NextResponse.json(
-        {
-          success: false,
-          message: "Invalid month or year",
-        },
+        { success: false, message: "Invalid input" },
         { status: 400 }
       );
     }
 
-    if (!Array.isArray(students) || students.length === 0) {
+    /* ===============================
+       ALREADY GENERATED? (SAFE)
+       =============================== */
+    const existing = await FeeVoucher.find({
+      campusId: user.campusId,
+      classId,
+      month: monthNum,
+      year: yearNum,
+    }).lean();
+
+    if (existing.length > 0) {
       return NextResponse.json(
         {
-          success: false,
-          message: "No students provided for fee generation",
+          success: true,
+          alreadyGenerated: true,
+          vouchers: existing,
         },
-        { status: 400 }
+        { status: 200 }
       );
     }
 
-    // ===============================
-    // SAFE DATES
-    // ===============================
+    /* ===============================
+       NORMAL FLOW
+       =============================== */
     const issueDate = new Date(yearNum, monthNum - 1, 1);
     const dueDate = new Date(yearNum, monthNum - 1, 10);
 
-    if (isNaN(issueDate.getTime()) || isNaN(dueDate.getTime())) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Invalid issue or due date",
-        },
-        { status: 400 }
-      );
-    }
-
-    // ===============================
-    // FEE CYCLE LOCK
-    // ===============================
-    let cycle = await FeeCycle.findOne({
-      campusId: user.campusId,
-      month: monthNum,
-      year: yearNum,
-    });
-
-    if (!cycle) {
-      cycle = await FeeCycle.create({
-        campusId: user.campusId,
-        month: monthNum,
-        year: yearNum,
-        issueDate,
-        dueDate,
-        status: "draft",
-        generatedBy: user._id,
-      });
-    }
-
-    if (cycle.status !== "draft") {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Fee already generated for this month",
-        },
-        { status: 409 }
-      );
-    }
-
-    // ===============================
-    // FEE STRUCTURE
-    // ===============================
     const structure = await FeeStructure.findOne({
       campusId: user.campusId,
       classId,
@@ -143,31 +73,21 @@ export async function POST(req) {
 
     if (!structure) {
       return NextResponse.json(
-        {
-          success: false,
-          message: "Fee structure not found for this class",
-        },
+        { success: false, message: "Fee structure not found" },
         { status: 404 }
       );
     }
 
-    // ===============================
-    // TRANSACTION
-    // ===============================
     session = await mongoose.startSession();
     session.startTransaction();
 
     let counter = 1;
 
     for (const s of students) {
-      if (!mongoose.Types.ObjectId.isValid(s.studentId)) {
-        throw new Error("Invalid studentId detected");
-      }
-
       const previous = await FeeVoucher.findOne({
         campusId: user.campusId,
         studentId: s.studentId,
-        status: "unpaid",
+        status: { $ne: "paid" },
         $or: [
           { year: { $lt: yearNum } },
           { year: yearNum, month: { $lt: monthNum } },
@@ -176,23 +96,27 @@ export async function POST(req) {
         .sort({ year: -1, month: -1 })
         .session(session);
 
-      const arrears = previous ? previous.feeAfterDueDate : 0;
+      const arrearsAmount = previous
+        ? (previous.totals?.baseAmount || 0) +
+        (previous.totals?.lateAmount || 0)
+        : 0;
 
-      const payable =
+      // 🔥 CORRECT CALCULATION
+      const monthlyAmount =
         structure.monthlyFee +
         Number(s.extraFee || 0) -
-        Number(s.discount || 0) +
-        arrears;
+        Number(s.discount || 0);
 
-      const voucherNo = `${yearNum}${monthNum}-${counter
-        .toString()
-        .padStart(4, "0")}`;
+      const baseAmount = monthlyAmount + arrearsAmount;
+      const lateAmount = structure.lateFee || 0;
 
       await FeeVoucher.create(
         [
           {
             campusId: user.campusId,
-            voucherNo,
+            voucherNo: `${yearNum}${monthNum}-${counter
+              .toString()
+              .padStart(4, "0")}`,
             studentId: s.studentId,
             classId,
             month: monthNum,
@@ -200,18 +124,20 @@ export async function POST(req) {
             issueDate,
             dueDate,
 
-            carriedFromVoucherId: previous?._id || null,
-
             fees: {
               monthlyFee: structure.monthlyFee,
               paperFee: Number(s.extraFee || 0),
-              arrears,
-              lateFee: structure.lateFee || 100,
+              arrears: arrearsAmount,
+              lateFee: lateAmount,
             },
 
-            payableWithinDueDate: payable,
-            feeAfterDueDate:
-              payable + (structure.lateFee || 100),
+            // ✅ SOURCE OF TRUTH
+            totals: {
+              baseAmount,
+              lateAmount,
+            },
+
+            status: "unpaid",
           },
         ],
         { session }
@@ -235,33 +161,29 @@ export async function POST(req) {
       counter++;
     }
 
-    cycle.status = "generated";
-    await cycle.save({ session });
+    await FeeCycle.findOneAndUpdate(
+      { campusId: user.campusId, month: monthNum, year: yearNum },
+      { status: "generated", generatedBy: user._id },
+      { upsert: true, session }
+    );
 
     await session.commitTransaction();
     session.endSession();
 
     return NextResponse.json(
-      {
-        success: true,
-        message: "Fee vouchers generated successfully",
-      },
+      { success: true, alreadyGenerated: false },
       { status: 201 }
     );
-
-  } catch (error) {
+  } catch (err) {
     if (session) {
       await session.abortTransaction();
       session.endSession();
     }
 
-    console.error("GENERATE FEE API ERROR:", error);
+    console.error("GENERATE FINAL ERROR:", err);
 
     return NextResponse.json(
-      {
-        success: false,
-        message: "Internal server error",
-      },
+      { success: false, message: "Server error" },
       { status: 500 }
     );
   }

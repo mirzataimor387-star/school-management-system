@@ -6,6 +6,7 @@ const feeVoucherSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Campus",
       required: true,
+      index: true,
     },
 
     voucherNo: {
@@ -18,42 +19,46 @@ const feeVoucherSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Student",
       required: true,
+      index: true,
     },
 
     classId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Class",
       required: true,
+      index: true,
     },
 
-    month: Number,
-    year: Number,
+    month: { type: Number, required: true }, // 1–12
+    year: { type: Number, required: true },
 
-    issueDate: Date,
-    dueDate: Date,
+    issueDate: { type: Date, required: true },
+    dueDate: { type: Date, required: true },
 
     fees: {
-      monthlyFee: Number,
-      paperFee: Number,
-      arrears: Number,
-      lateFee: Number,
+      monthlyFee: { type: Number, default: 0 },
+      paperFee: { type: Number, default: 0 },
+      arrears: { type: Number, default: 0 },
+      lateFee: { type: Number, default: 0 },
     },
 
-    payableWithinDueDate: Number,
-    feeAfterDueDate: Number,
+    totals: {
+      baseAmount: { type: Number, default: 0 },
+      lateAmount: { type: Number, default: 0 },
+    },
 
     status: {
       type: String,
-      enum: ["unpaid", "paid"],
+      enum: ["unpaid", "partial", "paid"],
       default: "unpaid",
+      index: true,
     },
   },
   { timestamps: true }
 );
 
-// ❌ duplicate safety
 feeVoucherSchema.index(
-  { studentId: 1, month: 1, year: 1 },
+  { campusId: 1, studentId: 1, month: 1, year: 1 },
   { unique: true }
 );
 

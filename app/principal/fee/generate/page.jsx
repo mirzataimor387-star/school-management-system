@@ -6,9 +6,6 @@ import { useRouter } from "next/navigation";
 export default function GenerateFeePage() {
   const router = useRouter();
 
-  // ===============================
-  // STATES
-  // ===============================
   const [classes, setClasses] = useState([]);
   const [classId, setClassId] = useState("");
   const [month, setMonth] = useState("");
@@ -20,37 +17,25 @@ export default function GenerateFeePage() {
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
 
+  const [alreadyGenerated, setAlreadyGenerated] = useState(false);
+
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  // ===============================
-  // LOAD CLASSES
-  // ===============================
+  /* ================= LOAD CLASSES ================= */
   useEffect(() => {
-    const loadClasses = async () => {
-      try {
-        const res = await fetch("/api/principal/classes");
-        const data = await res.json();
-
-        if (!res.ok || !data.classes) {
-          throw new Error(data.message || "Failed to load classes");
-        }
-
-        setClasses(data.classes);
-      } catch (err) {
-        setError(err.message || "Unable to load classes");
-      }
-    };
-
-    loadClasses();
+    fetch("/api/principal/classes")
+      .then(res => res.json())
+      .then(data => {
+        if (data?.classes) setClasses(data.classes);
+      });
   }, []);
 
-  // ===============================
-  // LOAD PREVIEW
-  // ===============================
+  /* ================= LOAD PREVIEW ================= */
   const loadPreview = async () => {
     setError("");
     setSuccess("");
+    setAlreadyGenerated(false);
 
     if (!classId || !month || !year) {
       setError("Class, month and year are required");
@@ -72,29 +57,44 @@ export default function GenerateFeePage() {
 
       const data = await res.json();
 
-      if (!res.ok) {
-        throw new Error(data.message || "Failed to load preview");
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Preview failed");
+      }
+
+      // 🔥 FEE ALREADY GENERATED → REDIRECT
+      if (data.alreadyGenerated) {
+        setAlreadyGenerated(true);
+        setShowModal(false);
+        setPreview([]);
+        setSuccess("Fee already generated. Redirecting…");
+
+        setTimeout(() => {
+          router.push(
+            `/principal/fee/vouchers?classId=${classId}&month=${month}&year=${year}`
+          );
+        }, 800);
+
+        return;
       }
 
       if (!Array.isArray(data.preview) || data.preview.length === 0) {
-        throw new Error("No students found for selected class");
+        setError("No students found");
+        return;
       }
 
       setPreview(data.preview);
       setShowModal(true);
+
     } catch (err) {
-      setError(err.message || "Preview loading failed");
+      setError(err.message || "Preview error");
     } finally {
       setLoading(false);
     }
   };
 
-  // ===============================
-  // UPDATE VALUES
-  // ===============================
+  /* ================= UPDATE VALUES ================= */
   const updateValue = (index, key, value) => {
     const updated = [...preview];
-
     updated[index][key] = Number(value);
 
     updated[index].payable =
@@ -105,10 +105,9 @@ export default function GenerateFeePage() {
     setPreview(updated);
   };
 
-  // ===============================
-  // GENERATE FINAL
-  // ===============================
+  /* ================= GENERATE FINAL ================= */
   const generateFinal = async () => {
+    if (alreadyGenerated) return;
     if (!confirm("Generate fee vouchers for this month?")) return;
 
     try {
@@ -133,48 +132,46 @@ export default function GenerateFeePage() {
 
       const data = await res.json();
 
-      if (!res.ok) {
-        throw new Error(data.message || "Fee generation failed");
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Generation failed");
       }
 
-      setSuccess("Fee vouchers generated successfully");
+      setSuccess("Fee vouchers generated");
       setShowModal(false);
 
       setTimeout(() => {
-        router.push("/principal/fee/vouchers");
-      }, 1200);
+        router.push(
+          `/principal/fee/vouchers?classId=${classId}&month=${month}&year=${year}`
+        );
+      }, 1000);
 
     } catch (err) {
-      setError(err.message || "Fee generation failed");
+      setError(err.message || "Generation error");
     } finally {
       setGenerating(false);
     }
   };
 
-  // ===============================
-  // UI
-  // ===============================
+  /* ================= UI ================= */
   return (
-    <div className="p-6 max-w-6xl mx-auto">
+    <div className="p-6 max-w-6xl mx-auto space-y-4">
 
-      <h1 className="text-2xl font-bold mb-6">
-        Generate Monthly Fee
-      </h1>
+      <h1 className="text-2xl font-bold">Generate Monthly Fee</h1>
 
       {error && (
-        <div className="bg-red-100 text-red-700 p-3 rounded mb-4">
+        <div className="bg-red-100 text-red-700 p-3 rounded">
           {error}
         </div>
       )}
 
       {success && (
-        <div className="bg-green-100 text-green-700 p-3 rounded mb-4">
+        <div className="bg-green-100 text-green-700 p-3 rounded">
           {success}
         </div>
       )}
 
       {/* FILTERS */}
-      <div className="flex gap-4 mb-4 flex-wrap">
+      <div className="flex gap-4 flex-wrap">
         <select
           className="border p-2 rounded"
           value={classId}
@@ -217,8 +214,8 @@ export default function GenerateFeePage() {
         </button>
       </div>
 
-      {/* MODAL */}
-      {showModal && (
+      {/* PREVIEW MODAL */}
+      {showModal && !alreadyGenerated && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white w-[90%] max-w-5xl rounded p-6 shadow">
 
@@ -251,32 +248,23 @@ export default function GenerateFeePage() {
                       <td className="border p-2">{s.rollNumber}</td>
                       <td className="border p-2">{s.name}</td>
                       <td className="border p-2">{s.baseFee}</td>
-
                       <td className="border p-2">
                         <input
                           type="number"
                           value={s.discount}
                           className="border p-1 w-20"
-                          onChange={e =>
-                            updateValue(i, "discount", e.target.value)
-                          }
+                          onChange={e => updateValue(i, "discount", e.target.value)}
                         />
                       </td>
-
                       <td className="border p-2">
                         <input
                           type="number"
                           value={s.extraFee}
                           className="border p-1 w-20"
-                          onChange={e =>
-                            updateValue(i, "extraFee", e.target.value)
-                          }
+                          onChange={e => updateValue(i, "extraFee", e.target.value)}
                         />
                       </td>
-
-                      <td className="border p-2 font-semibold">
-                        {s.payable}
-                      </td>
+                      <td className="border p-2 font-semibold">{s.payable}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -295,9 +283,7 @@ export default function GenerateFeePage() {
                 disabled={generating}
                 onClick={generateFinal}
                 className={`px-6 py-2 rounded text-white font-semibold
-                  ${generating
-                    ? "bg-gray-400"
-                    : "bg-green-600 hover:bg-green-700"}`}
+                  ${generating ? "bg-gray-400" : "bg-green-600 hover:bg-green-700"}`}
               >
                 {generating ? "Generating..." : "Confirm & Generate"}
               </button>

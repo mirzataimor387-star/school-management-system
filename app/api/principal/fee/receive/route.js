@@ -1,95 +1,67 @@
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
-
 import dbConnect from "@/utils/connectdb";
 import FeeVoucher from "@/models/FeeVoucher";
-import Student from "@/models/Student";
-import Class from "@/models/Class";
-
+import FeePayment from "@/models/FeePayment";
 import { getAuthUser } from "@/utils/getAuthUser";
 
-export async function POST(request) {
-    try {
-        await dbConnect();
+export async function POST(req) {
+  try {
+    await dbConnect();
 
-        // ===============================
-        // AUTH ✅ FIXED
-        // ===============================
-        const authUser = await getAuthUser(request);
-
-        // 🔐 principal only
-        if (!authUser || authUser.role !== "principal") {
-            return NextResponse.json(
-                { success: false, message: "Unauthorized" },
-                { status: 401 }
-            );
-        }
-
-        // ===============================
-        // BODY
-        // ===============================
-        const {
-            voucherId,
-            receivedAmount,
-            receivedDate,
-        } = await request.json();
-
-        // ===============================
-        // VALIDATION
-        // ===============================
-        if (!voucherId || !receivedAmount || !receivedDate) {
-            return NextResponse.json(
-                { success: false, message: "All fields are required" },
-                { status: 400 }
-            );
-        }
-
-        if (!mongoose.Types.ObjectId.isValid(voucherId)) {
-            return NextResponse.json(
-                { success: false, message: "Invalid voucher id" },
-                { status: 400 }
-            );
-        }
-
-        const voucher = await FeeVoucher.findById(voucherId);
-
-        if (!voucher) {
-            return NextResponse.json(
-                { success: false, message: "Voucher not found" },
-                { status: 404 }
-            );
-        }
-
-        // ===============================
-        // PAYMENT LOGIC
-        // ===============================
-        const previousPaid = voucher.receivedAmount || 0;
-        const totalPaid = previousPaid + Number(receivedAmount);
-
-        voucher.receivedAmount = totalPaid;
-        voucher.receivedDate = new Date(receivedDate);
-
-        // auto status
-        if (totalPaid >= voucher.payableWithinDueDate) {
-            voucher.status = "paid";
-        } else {
-            voucher.status = "unpaid";
-        }
-
-        await voucher.save();
-
-        return NextResponse.json({
-            success: true,
-            message: "Fee received successfully",
-            voucher,
-        });
-
-    } catch (error) {
-        console.error("FEE RECEIVE API ERROR:", error);
-
-        return NextResponse.json(
-            { success: false, message: "Server error" },
-            { status: 500 }
-        );
+    const user = await getAuthUser(req);
+    if (!user || user.role !== "principal") {
+      return NextResponse.json(
+        { success: false, message: "Unauthorized" },
+        { status: 401 }
+      );
     }
+
+    const { voucherId, amount, method, receivedAt } = await req.json();
+
+    if (
+      !voucherId ||
+      !mongoose.Types.ObjectId.isValid(voucherId) ||
+      !amount ||
+      Number(amount) <= 0
+    ) {
+      return NextResponse.json(
+        { success: false, message: "Invalid input" },
+        { status: 400 }
+      );
+    }
+
+    const voucher = await FeeVoucher.findOne({
+      _id: voucherId,
+      campusId: user.campusId,
+    });
+
+    if (!voucher) {
+      return NextResponse.json(
+        { success: false, message: "Voucher not found" },
+        { status: 404 }
+      );
+    }
+
+    await FeePayment.create({
+      campusId: voucher.campusId,
+      voucherId: voucher._id,
+      studentId: voucher.studentId,
+      amount: Number(amount),
+      method: method || "cash",
+      receivedAt: receivedAt ? new Date(receivedAt) : new Date(),
+
+      // 🔥 THIS IS THE FIX
+      receivedBy: user.id || user.user?._id,
+    });
+
+    return NextResponse.json({ success: true });
+
+  } catch (error) {
+    console.error("RECEIVE ERROR:", error);
+    return NextResponse.json(
+      { success: false, message: "Server error" },
+      { status: 500 }
+    );
+  }
 }

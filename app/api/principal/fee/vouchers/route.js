@@ -1,93 +1,89 @@
 import { NextResponse } from "next/server";
-import mongoose from "mongoose";
-
 import dbConnect from "@/utils/connectdb";
-import { getAuthUser } from "@/utils/getAuthUser";
-
-// ✅ populated models
 import FeeVoucher from "@/models/FeeVoucher";
+import FeePayment from "@/models/FeePayment";
 import Student from "@/models/Student";
 import Class from "@/models/Class";
+import { getAuthUser } from "@/utils/getAuthUser";
+import { calculateVoucherTotals } from "@/utils/feeCalculations";
 
-export async function GET(request) {
+export async function GET(req) {
   try {
-    // ===============================
-    // DB CONNECT
-    // ===============================
     await dbConnect();
 
-    // ===============================
-    // AUTH ✅ FIXED
-    // ===============================
-    const authUser = await getAuthUser(request);
+    const user = await getAuthUser(req);
+    if (!user || user.role !== "principal") {
+      return NextResponse.json({ success: false }, { status: 401 });
+    }
 
-    if (!authUser || authUser.role !== "principal") {
+    const { searchParams } = new URL(req.url);
+    const classId = searchParams.get("classId");
+    const month = Number(searchParams.get("month"));
+    const year = Number(searchParams.get("year"));
+
+    if (!classId || !month || !year) {
       return NextResponse.json(
-        {
-          success: false,
-          vouchers: [],
-          message: "Unauthorized access",
-        },
-        { status: 401 }
+        { success: false, message: "Missing filters" },
+        { status: 400 }
       );
     }
 
-    // ===============================
-    // FILTERS (optional)
-    // ===============================
-    const { searchParams } = new URL(request.url);
-
-    const classId = searchParams.get("classId");
-    const month = searchParams.get("month");
-    const year = searchParams.get("year");
-
-    const query = {
-      campusId: authUser.campusId,
-    };
-
-    if (classId && mongoose.Types.ObjectId.isValid(classId)) {
-      query.classId = classId;
-    }
-
-    if (month) query.month = Number(month);
-    if (year) query.year = Number(year);
-
-    // ===============================
-    // FETCH VOUCHERS
-    // ===============================
-    const vouchers = await FeeVoucher.find(query)
-      .populate({
-        path: "studentId",
-        select: "name rollNumber",
-      })
-      .populate({
-        path: "classId",
-        select: "className",
-      })
-      .sort({ createdAt: -1 })
+    const vouchers = await FeeVoucher.find({
+      campusId: user.campusId,
+      classId,
+      month,
+      year,
+    })
+      .populate("studentId", "name rollNumber")
+      .populate("classId", "className")
       .lean();
 
-    // ===============================
-    // RESPONSE
-    // ===============================
-    return NextResponse.json(
-      {
-        success: true,
-        total: vouchers.length,
-        vouchers,
-      },
-      { status: 200 }
-    );
+    if (!vouchers.length) {
+      return NextResponse.json({ success: true, vouchers: [] });
+    }
 
-  } catch (error) {
-    console.error("FEE VOUCHER LIST API ERROR:", error);
+    const voucherIds = vouchers.map(v => v._id);
 
+    const payments = await FeePayment.find({
+      voucherId: { $in: voucherIds },
+    }).lean();
+
+    const paymentMap = {};
+    for (const p of payments) {
+      const id = p.voucherId.toString();
+      if (!paymentMap[id]) paymentMap[id] = [];
+      paymentMap[id].push(p);
+    }
+
+    const normalized = vouchers.map(v => {
+      const totals = calculateVoucherTotals(
+        v,
+        paymentMap[v._id.toString()] || []
+      );
+
+      return {
+        _id: v._id,
+        studentId: v.studentId,
+        classId: v.classId,
+        month: v.month,
+        year: v.year,
+
+        totalPayable: totals.payable,
+        received: totals.received,
+        pending: totals.pending,
+        status: totals.status,
+      };
+    });
+
+    return NextResponse.json({
+      success: true,
+      vouchers: normalized,
+    });
+
+  } catch (err) {
+    console.error("VOUCHER LIST ERROR:", err);
     return NextResponse.json(
-      {
-        success: false,
-        vouchers: [],
-        message: "Internal server error",
-      },
+      { success: false, message: "Server error" },
       { status: 500 }
     );
   }

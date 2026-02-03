@@ -7,139 +7,106 @@ import { getAuthUser } from "@/utils/getAuthUser";
 import Student from "@/models/Student";
 import FeeStructure from "@/models/FeeStructure";
 import StudentFeeAdjustment from "@/models/StudentFeeAdjustment";
+import FeeVoucher from "@/models/FeeVoucher";
 
-export async function POST(request) {
+export async function POST(req) {
   try {
-    // ===============================
-    // DB CONNECT
-    // ===============================
     await dbConnect();
 
-    // ===============================
-    // AUTH  ✅ FIXED
-    // ===============================
-    const authUser = await getAuthUser(request);
-
-    if (!authUser || authUser.role !== "principal") {
+    const user = await getAuthUser(req);
+    if (!user || user.role !== "principal") {
       return NextResponse.json(
-        {
-          success: false,
-          preview: [],
-          message: "Unauthorized access",
-        },
+        { success: false, message: "Unauthorized" },
         { status: 401 }
       );
     }
 
-    // ===============================
-    // BODY
-    // ===============================
-    const { classId, month, year } = await request.json();
-
-    // ===============================
-    // VALIDATION
-    // ===============================
-    if (!classId || !mongoose.Types.ObjectId.isValid(classId)) {
-      return NextResponse.json(
-        {
-          success: false,
-          preview: [],
-          message: "Invalid or missing classId",
-        },
-        { status: 400 }
-      );
-    }
-
+    const { classId, month, year } = await req.json();
     const monthNum = Number(month);
     const yearNum = Number(year);
 
     if (
+      !classId ||
+      !mongoose.Types.ObjectId.isValid(classId) ||
       !monthNum ||
-      monthNum < 1 ||
-      monthNum > 12 ||
-      !yearNum ||
-      yearNum < 2000
+      !yearNum
     ) {
       return NextResponse.json(
-        {
-          success: false,
-          preview: [],
-          message: "Invalid month or year",
-        },
+        { success: false, message: "Invalid input" },
         { status: 400 }
       );
     }
 
-    // ===============================
-    // STUDENTS
-    // ===============================
+    /* ============================================
+       🔥 CHECK: ALREADY GENERATED?
+       ============================================ */
+    const already = await FeeVoucher.exists({
+      campusId: user.campusId,
+      classId,
+      month: monthNum,
+      year: yearNum,
+    });
+
+    if (already) {
+      return NextResponse.json({
+        success: true,
+        alreadyGenerated: true,
+      });
+    }
+
+    /* ============================================
+       NORMAL PREVIEW FLOW
+       ============================================ */
     const students = await Student.find({
-      campusId: authUser.campusId,
-      classId: new mongoose.Types.ObjectId(classId),
+      campusId: user.campusId,
+      classId,
       status: "active",
     })
       .sort({ rollNumber: 1 })
       .select("_id name rollNumber");
 
     if (!students.length) {
-      return NextResponse.json(
-        {
-          success: true,
-          preview: [],
-          message: "No active students found in this class",
-        },
-        { status: 200 }
-      );
+      return NextResponse.json({
+        success: true,
+        preview: [],
+      });
     }
 
-    // ===============================
-    // STRUCTURE
-    // ===============================
     const structure = await FeeStructure.findOne({
-      campusId: authUser.campusId,
+      campusId: user.campusId,
       classId,
     });
 
     if (!structure) {
       return NextResponse.json(
-        {
-          success: false,
-          preview: [],
-          message: "Fee structure not found for this class",
-        },
+        { success: false, message: "Fee structure not found" },
         { status: 404 }
       );
     }
 
-    // ===============================
-    // ADJUSTMENTS
-    // ===============================
     const adjustments = await StudentFeeAdjustment.find({
-      campusId: authUser.campusId,
+      campusId: user.campusId,
       classId,
       month: monthNum,
       year: yearNum,
     });
 
-    const adjustmentMap = {};
-    for (const adj of adjustments) {
-      adjustmentMap[adj.studentId.toString()] = adj;
-    }
+    const adjMap = {};
+    adjustments.forEach(a => {
+      adjMap[a.studentId.toString()] = a;
+    });
 
-    // ===============================
-    // PREVIEW BUILD
-    // ===============================
-    const preview = students.map((student) => {
-      const adj = adjustmentMap[student._id.toString()] || {};
-
+    const preview = students.map(s => {
+      const adj = adjMap[s._id.toString()] || {};
       const baseFee = Number(structure.monthlyFee);
+
       const discount = Number(adj.discount || 0);
       const extraFee = Number(adj.extraFee || 0);
 
       return {
-        studentId: student._id,
-        rollNumber: student.rollNumber,
-        name: student.name,
+        studentId: s._id,
+        rollNumber: s.rollNumber,
+        name: s.name,
         baseFee,
         discount,
         extraFee,
@@ -147,26 +114,16 @@ export async function POST(request) {
       };
     });
 
-    // ===============================
-    // RESPONSE
-    // ===============================
-    return NextResponse.json(
-      {
-        success: true,
-        preview,
-      },
-      { status: 200 }
-    );
+    return NextResponse.json({
+      success: true,
+      alreadyGenerated: false,
+      preview,
+    });
 
-  } catch (error) {
-    console.error("FEE PREVIEW API ERROR:", error);
-
+  } catch (err) {
+    console.error("PREVIEW ERROR:", err);
     return NextResponse.json(
-      {
-        success: false,
-        preview: [],
-        message: "Internal server error",
-      },
+      { success: false, message: "Server error" },
       { status: 500 }
     );
   }

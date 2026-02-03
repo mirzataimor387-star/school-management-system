@@ -14,7 +14,7 @@ export function normalizeRole(role) {
 }
 
 /* =========================================
-   FUTURE-PROOF AUTH USER
+   FIXED & FUTURE-PROOF AUTH USER
 ========================================= */
 export async function getAuthUser() {
   try {
@@ -32,7 +32,6 @@ export async function getAuthUser() {
       .populate({
         path: "campusId",
         model: Campus,
-        options: { lean: true },
       })
       .lean();
 
@@ -43,18 +42,21 @@ export async function getAuthUser() {
       id: user._id.toString(),
       role: normalizeRole(user.role),
 
-      // 👤 base user
+      // ✅ IMPORTANT FIX (THIS WAS MISSING)
+      campusId: user.campusId?._id?.toString() || null,
+
+      // 👤 base user (unchanged)
       user,
 
-      // 🏫 optional context (null for superadmin etc.)
+      // 🏫 campus object (unchanged)
       campus: user.campusId || null,
 
-      // 🧠 helpers
+      // 🧠 helpers (unchanged)
       isSuperAdmin: normalizeRole(user.role) === "superadmin",
       isPrincipal: normalizeRole(user.role) === "principal",
       isTeacher: normalizeRole(user.role) === "teacher",
 
-      // raw token data (if ever needed)
+      // raw token data
       tokenPayload: decoded,
     };
 

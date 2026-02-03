@@ -18,9 +18,9 @@ export default function FeeStructurePage() {
 
     const [structureExists, setStructureExists] = useState(false);
 
-    // ===============================
-    // LOAD CLASSES
-    // ===============================
+    /* ===============================
+       LOAD CLASSES
+    =============================== */
     useEffect(() => {
         fetch("/api/principal/classes")
             .then(res => res.json())
@@ -28,9 +28,9 @@ export default function FeeStructurePage() {
             .catch(() => setError("Failed to load classes"));
     }, []);
 
-    // ===============================
-    // LOAD STRUCTURE ON CLASS CHANGE
-    // ===============================
+    /* ===============================
+       LOAD STRUCTURE ON CLASS CHANGE
+    =============================== */
     useEffect(() => {
         if (!classId) return;
 
@@ -56,9 +56,9 @@ export default function FeeStructurePage() {
             .finally(() => setLoading(false));
     }, [classId]);
 
-    // ===============================
-    // SAVE STRUCTURE
-    // ===============================
+    /* ===============================
+       SAVE STRUCTURE
+    =============================== */
     const saveStructure = async () => {
         setError("");
         setSuccess("");
@@ -98,95 +98,123 @@ export default function FeeStructurePage() {
         }
     };
 
-    // ===============================
-    // UI
-    // ===============================
+    /* ===============================
+       UI
+    =============================== */
     return (
-        <div className="max-w-xl mx-auto p-6">
+        <div className="min-h-screen bg-gray-50 px-4 py-8">
+            <div className="max-w-2xl mx-auto">
 
-            <h1 className="text-2xl font-bold mb-6">
-                Fee Structure Setup
-            </h1>
-
-            {error && (
-                <div className="bg-red-100 text-red-700 p-3 rounded mb-4">
-                    {error}
+                {/* HEADER */}
+                <div className="mb-6">
+                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">
+                        Fee Structure
+                    </h1>
+                    <p className="text-sm text-gray-500 mt-1">
+                        Set or update monthly fee details for each class
+                    </p>
                 </div>
-            )}
 
-            {success && (
-                <div className="bg-green-100 text-green-700 p-3 rounded mb-4">
-                    {success}
+                {/* CARD */}
+                <div className="bg-white rounded-2xl shadow-sm border p-6 space-y-5">
+
+                    {/* ALERTS */}
+                    {error && (
+                        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                            {error}
+                        </div>
+                    )}
+
+                    {success && (
+                        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm">
+                            {success}
+                        </div>
+                    )}
+
+                    {/* CLASS */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Select Class
+                        </label>
+                        <select
+                            value={classId}
+                            onChange={e => setClassId(e.target.value)}
+                            className="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
+                        >
+                            <option value="">-- Choose Class --</option>
+                            {classes.map(c => (
+                                <option key={c._id} value={c._id}>
+                                    {c.className}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* FEES GRID */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+
+                        {/* MONTHLY */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Monthly Fee
+                            </label>
+                            <input
+                                type="number"
+                                value={monthlyFee}
+                                onChange={e => setMonthlyFee(e.target.value)}
+                                placeholder="e.g. 2500"
+                                className="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
+                            />
+                        </div>
+
+                        {/* PAPER */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Paper Fee
+                            </label>
+                            <input
+                                type="number"
+                                value={paperFee}
+                                onChange={e => setPaperFee(e.target.value)}
+                                placeholder="Optional"
+                                className="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
+                            />
+                        </div>
+
+                        {/* LATE */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Late Fee
+                            </label>
+                            <input
+                                type="number"
+                                value={lateFee}
+                                onChange={e => setLateFee(e.target.value)}
+                                placeholder="Default 100"
+                                className="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
+                            />
+                        </div>
+                    </div>
+
+                    {/* ACTION */}
+                    <button
+                        onClick={saveStructure}
+                        disabled={saving || loading}
+                        className={`w-full mt-4 py-2.5 rounded-xl font-semibold text-white transition
+              ${saving || loading
+                                ? "bg-gray-400 cursor-not-allowed"
+                                : "bg-blue-600 hover:bg-blue-700 active:scale-[0.99]"
+                            }`}
+                    >
+                        {saving
+                            ? "Saving..."
+                            : structureExists
+                                ? "Update Fee Structure"
+                                : "Save Fee Structure"}
+                    </button>
+
                 </div>
-            )}
-
-            {/* CLASS */}
-            <div className="mb-4">
-                <label className="block mb-1 font-medium">Class</label>
-                <select
-                    value={classId}
-                    onChange={e => setClassId(e.target.value)}
-                    className="border p-2 rounded w-full"
-                >
-                    <option value="">Select Class</option>
-                    {classes.map(c => (
-                        <option key={c._id} value={c._id}>
-                            {c.className}
-                        </option>
-                    ))}
-                </select>
             </div>
-
-            {/* MONTHLY */}
-            <div className="mb-4">
-                <label className="block mb-1 font-medium">
-                    Monthly Fee
-                </label>
-                <input
-                    type="number"
-                    value={monthlyFee}
-                    onChange={e => setMonthlyFee(e.target.value)}
-                    className="border p-2 rounded w-full"
-                />
-            </div>
-
-            {/* PAPER */}
-            <div className="mb-4">
-                <label className="block mb-1 font-medium">
-                    Paper Fee (optional)
-                </label>
-                <input
-                    type="number"
-                    value={paperFee}
-                    onChange={e => setPaperFee(e.target.value)}
-                    className="border p-2 rounded w-full"
-                />
-            </div>
-
-            {/* LATE */}
-            <div className="mb-6">
-                <label className="block mb-1 font-medium">
-                    Late Fee (optional)
-                </label>
-                <input
-                    type="number"
-                    value={lateFee}
-                    onChange={e => setLateFee(e.target.value)}
-                    className="border p-2 rounded w-full"
-                />
-            </div>
-
-            <button
-                onClick={saveStructure}
-                disabled={saving || loading}
-                className={`w-full py-2 rounded text-white font-semibold
-          ${saving
-                        ? "bg-gray-400"
-                        : "bg-blue-600 hover:bg-blue-700"}`}
-            >
-                {structureExists ? "Update Fee Structure" : "Save Fee Structure"}
-            </button>
-
         </div>
     );
 }

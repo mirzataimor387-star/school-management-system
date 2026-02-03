@@ -126,18 +126,18 @@ export default function PrincipalSidebar({ isOpen, onClose }) {
             Fee History
           </Link> */}
 
-          <Link href="/principal/fee/defaulters" onClick={onClose}
+          {/* <Link href="/principal/fee/defaulters" onClick={onClose}
             className={linkClass("/principal/fee/defaulters")}>
             <AlertCircle size={18} />
             Defaulters
-          </Link>
+          </Link> */}
 
           {/* ================= END ================= */}
 
-          <Link href="/principal/settings" onClick={onClose}
-            className={linkClass("/principal/settings")}>
+          <Link href="/principal/fee/vouchers" onClick={onClose}
+            className={linkClass("/principal/fee/vouchers")}>
             <Settings size={18} />
-            Settings
+            Fee Vouchers
           </Link>
 
         </nav>

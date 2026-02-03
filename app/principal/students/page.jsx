@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { Users } from "lucide-react";
 
 export default function StudentsPage() {
-
     const [students, setStudents] = useState([]);
     const [classes, setClasses] = useState([]);
     const [classId, setClassId] = useState("");
@@ -17,17 +16,24 @@ export default function StudentsPage() {
     ======================== */
     const loadClasses = async () => {
         try {
+            setApiMessage("");
+
             const res = await fetch("/api/principal/classes", {
                 credentials: "include",
             });
 
             const data = await res.json();
 
-            if (data.success) {
-                setClasses(data.classes || []);
+            if (!res.ok) {
+                throw new Error(data.message || "Failed to load classes");
             }
+
+            // ✅ FIX: no `data.success` check
+            setClasses(Array.isArray(data.classes) ? data.classes : []);
         } catch (err) {
-            console.log("CLASS LOAD ERROR");
+            console.error("CLASS LOAD ERROR:", err);
+            setClasses([]);
+            setApiMessage("Unable to load classes");
         }
     };
 
@@ -35,7 +41,10 @@ export default function StudentsPage() {
        LOAD STUDENTS (CLASS WISE)
     ======================== */
     const loadStudents = async (cid) => {
-        if (!cid) return;
+        if (!cid) {
+            setStudents([]);
+            return;
+        }
 
         try {
             setLoading(true);
@@ -48,22 +57,23 @@ export default function StudentsPage() {
 
             const data = await res.json();
 
-            if (!data.success) {
-                setApiMessage(data.message || "Failed to load students");
-                setStudents([]);
-                return;
+            if (!res.ok) {
+                throw new Error(data.message || "Failed to load students");
             }
 
-            setStudents(data.students || []);
-
+            setStudents(Array.isArray(data.students) ? data.students : []);
         } catch (err) {
-            setApiMessage("Server not responding");
+            console.error("STUDENTS LOAD ERROR:", err);
             setStudents([]);
+            setApiMessage("Server not responding");
         } finally {
             setLoading(false);
         }
     };
 
+    /* =========================
+       EFFECTS
+    ======================== */
     useEffect(() => {
         loadClasses();
     }, []);
@@ -72,6 +82,9 @@ export default function StudentsPage() {
         loadStudents(classId);
     }, [classId]);
 
+    /* =========================
+       UI
+    ======================== */
     return (
         <div className="p-6 space-y-6">
 
@@ -95,7 +108,7 @@ export default function StudentsPage() {
 
                     {classes.map((c) => (
                         <option key={c._id} value={c._id}>
-                            {c.className}
+                            {c.className} {c.section ? `(${c.section})` : ""}
                         </option>
                     ))}
                 </select>
@@ -147,26 +160,25 @@ export default function StudentsPage() {
                         {/* ✅ DATA */}
                         {!loading && !apiMessage &&
                             students.map((s) => (
-                                <tr key={s._id} className="border-t text-sm hover:bg-gray-50">
-
+                                <tr
+                                    key={s._id}
+                                    className="border-t text-sm hover:bg-gray-50"
+                                >
                                     <td className="p-3 font-medium">{s.name}</td>
-
                                     <td>{s.rollNumber}</td>
-
-                                    <td>{s.classId?.className}</td>
-
+                                    <td>{s.classId?.className || "—"}</td>
                                     <td>
                                         <span
                                             className={`px-2 py-1 rounded text-xs font-medium
                         ${s.status === "active"
                                                     ? "bg-green-100 text-green-700"
-                                                    : "bg-red-100 text-red-700"}`}
+                                                    : "bg-red-100 text-red-700"
+                                                }`}
                                         >
                                             {s.status}
                                         </span>
                                     </td>
-
-                                    <td>{s.session}</td>
+                                    <td>{s.session || "—"}</td>
                                 </tr>
                             ))}
 

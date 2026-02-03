@@ -37,6 +37,15 @@ classSchema.index(
   { unique: true }
 );
 
-// ✅ NAMED EXPORT (IMPORTANT)
+// =======================================
+// 🔴 OLD WORKING CODE (DO NOT REMOVE)
+// Named export — used in old parts
+// =======================================
 export const Class =
   mongoose.models.Class || mongoose.model("Class", classSchema);
+
+// =======================================
+// ✅ NEW ADDITION (NON-BREAKING)
+// Default export — REQUIRED for App Router
+// =======================================
+export default Class;

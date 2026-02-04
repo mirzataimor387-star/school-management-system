@@ -9,7 +9,7 @@ FINAL PDF API (LOCKED & ACCOUNTING-CORRECT)
 ✔ Payable recalculated (safe)
 ✔ Async DB calls fixed
 ✔ Preview === Generate === PDF
-✔ LOCAL + VERCEL SAFE (FINAL)
+✔ LOCAL + VERCEL SAFE (FINAL, FIXED)
 =====================================================
 */
 
@@ -22,6 +22,12 @@ import dbConnect from "@/utils/connectdb";
 import FeeVoucher from "@/models/FeeVoucher";
 import StudentFeeAdjustment from "@/models/StudentFeeAdjustment";
 import { getAuthUser } from "@/utils/getAuthUser";
+
+/* ===============================
+   🔴 REQUIRED FOR VERCEL
+================================ */
+chromium.setHeadlessMode = true;
+chromium.setGraphicsMode = false;
 
 /* ===============================
    LOGOS (ABSOLUTE URL)
@@ -188,7 +194,8 @@ export async function GET(req) {
     const finalHtml = baseTemplate.replace("{{VOUCHER_CONTENT}}", html);
 
     /* ===============================
-       🔥 FINAL BROWSER LAUNCH FIX
+       🔥 FINAL BROWSER LAUNCH
+       (THIS FIXES YOUR ERROR)
     ================================= */
     const isVercel = !!process.env.VERCEL;
     let browser;
@@ -199,13 +206,14 @@ export async function GET(req) {
       browser = await puppeteer.launch({ headless: true });
     } else {
       // VERCEL
-      const executablePath =
-        (await chromium.executablePath()) || "/usr/bin/chromium-browser";
+      const executablePath = await chromium.executablePath({
+        cacheDir: "/tmp",
+      });
 
       browser = await puppeteerCore.launch({
         args: chromium.args,
         executablePath,
-        headless: chromium.headless,
+        headless: true,
       });
     }
 

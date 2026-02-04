@@ -9,25 +9,59 @@ FINAL PDF API (LOCKED & ACCOUNTING-CORRECT)
 ✔ Payable recalculated (safe)
 ✔ Async DB calls fixed
 ✔ Preview === Generate === PDF
+✔ LOCAL + PRODUCTION SAFE
 =====================================================
 */
 
 export const runtime = "nodejs";
 
-import puppeteer from "puppeteer";
-import fs from "fs";
-import path from "path";
+import puppeteerCore from "puppeteer-core";
+import chromium from "@sparticuz/chromium";
 
 import dbConnect from "@/utils/connectdb";
 import FeeVoucher from "@/models/FeeVoucher";
 import StudentFeeAdjustment from "@/models/StudentFeeAdjustment";
 import { getAuthUser } from "@/utils/getAuthUser";
 
+/* ===============================
+   LOGOS (ABSOLUTE URL)
+================================ */
 const LOGO_LEFT =
   "https://res.cloudinary.com/dmpppmbyx/image/upload/v1769922018/school-logo_aseuug.png";
 
 const LOGO_RIGHT =
   "https://res.cloudinary.com/dmpppmbyx/image/upload/v1769922030/school-sublogo_koycya.png";
+
+/* ===============================
+   BASE HTML TEMPLATE
+================================ */
+const baseTemplate = `
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+body { font-family: Arial, sans-serif; margin:0; padding:0; }
+.page { page-break-after: always; padding:20px; }
+.copy-box { border:1px solid #000; padding:12px; margin-bottom:10px; }
+.header { display:flex; justify-content:space-between; align-items:center; }
+.header img { height:60px; }
+.school-name { font-size:16px; font-weight:bold; text-align:center; }
+.title { font-size:14px; text-align:center; }
+.copy { font-size:12px; text-align:center; margin-top:4px; }
+table { width:100%; border-collapse:collapse; margin-top:10px; }
+td { border:1px solid #000; padding:6px; font-size:12px; }
+.label { font-weight:bold; width:25%; }
+.fee-table td { width:50%; }
+.note { margin-top:10px; font-size:11px; text-align:center; }
+.cut-line { text-align:center; margin:10px 0; font-size:12px; }
+</style>
+</head>
+<body>
+{{VOUCHER_CONTENT}}
+</body>
+</html>
+`;
 
 /* ===============================
    SINGLE COPY TEMPLATE
@@ -46,16 +80,12 @@ const singleCopy = `
 
   <table>
     <tr>
-      <td class="label">Student</td>
-      <td>{{STUDENT}}</td>
-      <td class="label">Father</td>
-      <td>{{FATHER}}</td>
+      <td class="label">Student</td><td>{{STUDENT}}</td>
+      <td class="label">Father</td><td>{{FATHER}}</td>
     </tr>
     <tr>
-      <td class="label">Roll No</td>
-      <td>{{ROLL}}</td>
-      <td class="label">Class</td>
-      <td>{{CLASS}}</td>
+      <td class="label">Roll No</td><td>{{ROLL}}</td>
+      <td class="label">Class</td><td>{{CLASS}}</td>
     </tr>
     <tr>
       <td class="label">Month</td>
@@ -72,19 +102,18 @@ const singleCopy = `
     <tr><td class="label">Payable</td><td>{{PWD}}</td></tr>
   </table>
 
-  <div class="note">
-    Fee must be paid before 10th of every month.
-  </div>
+  <div class="note">Fee must be paid before 10th of every month.</div>
 </div>
 `;
 
+/* ===============================
+   GET API
+================================ */
 export async function GET(req) {
   await dbConnect();
 
   const user = await getAuthUser(req);
-  if (!user) {
-    return new Response("Unauthorized", { status: 401 });
-  }
+  if (!user) return new Response("Unauthorized", { status: 401 });
 
   const { searchParams } = new URL(req.url);
   const month = Number(searchParams.get("month"));
@@ -108,22 +137,13 @@ export async function GET(req) {
     return new Response("No vouchers found", { status: 404 });
   }
 
-  const template = fs.readFileSync(
-    path.join(process.cwd(), "templates/fee-voucher.html"),
-    "utf8"
-  );
-
   const monthName = new Date(year, month - 1).toLocaleString("en-US", {
     month: "long",
   });
 
   let html = "";
 
-  /* =================================================
-     🔥 IMPORTANT: for...of (async safe)
-     ================================================= */
   for (const v of vouchers) {
-    // 🔥 READ DISCOUNT / EXTRA FEE
     const adjustment = await StudentFeeAdjustment.findOne({
       campusId: v.campusId,
       studentId: v.studentId?._id,
@@ -135,7 +155,6 @@ export async function GET(req) {
     const discount = adjustment?.discount || 0;
     const extraFee = adjustment?.extraFee || 0;
 
-    // 🔥 PAYABLE (READ-ONLY CALCULATION)
     const payable = Math.max(
       0,
       (v.fees?.monthlyFee || 0) +
@@ -165,12 +184,27 @@ export async function GET(req) {
     `;
   }
 
-  const finalHtml = template.replace("{{VOUCHER_CONTENT}}", html);
+  const finalHtml = baseTemplate.replace("{{VOUCHER_CONTENT}}", html);
 
-  const browser = await puppeteer.launch({ headless: "new" });
+  /* ===============================
+     🔥 DUAL MODE BROWSER LAUNCH
+  ================================= */
+  const isLocal = process.env.NODE_ENV !== "production";
+  let browser;
+
+  if (isLocal) {
+    const puppeteer = (await import("puppeteer")).default;
+    browser = await puppeteer.launch({ headless: true });
+  } else {
+    browser = await puppeteerCore.launch({
+      args: chromium.args,
+      executablePath: await chromium.executablePath(),
+      headless: chromium.headless,
+    });
+  }
+
   const page = await browser.newPage();
-
-  await page.setContent(finalHtml, { waitUntil: "networkidle0" });
+  await page.setContent(finalHtml, { waitUntil: "load" });
 
   const pdf = await page.pdf({
     format: "A4",

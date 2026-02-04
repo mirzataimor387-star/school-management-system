@@ -9,7 +9,7 @@ FINAL PDF API (LOCKED & ACCOUNTING-CORRECT)
 ✔ Payable recalculated (safe)
 ✔ Async DB calls fixed
 ✔ Preview === Generate === PDF
-✔ LOCAL + PRODUCTION SAFE
+✔ LOCAL + VERCEL SAFE (FINAL)
 =====================================================
 */
 
@@ -110,113 +110,123 @@ const singleCopy = `
    GET API
 ================================ */
 export async function GET(req) {
-  await dbConnect();
+  try {
+    await dbConnect();
 
-  const user = await getAuthUser(req);
-  if (!user) return new Response("Unauthorized", { status: 401 });
+    const user = await getAuthUser(req);
+    if (!user) return new Response("Unauthorized", { status: 401 });
 
-  const { searchParams } = new URL(req.url);
-  const month = Number(searchParams.get("month"));
-  const year = Number(searchParams.get("year"));
-  const classId = searchParams.get("classId");
+    const { searchParams } = new URL(req.url);
+    const month = Number(searchParams.get("month"));
+    const year = Number(searchParams.get("year"));
+    const classId = searchParams.get("classId");
 
-  if (!month || !year) {
-    return new Response("Month and year required", { status: 400 });
-  }
+    if (!month || !year) {
+      return new Response("Month and year required", { status: 400 });
+    }
 
-  const vouchers = await FeeVoucher.find({
-    campusId: user.campusId,
-    ...(classId && { classId }),
-    month,
-    year,
-  })
-    .populate("studentId")
-    .populate("classId");
+    const vouchers = await FeeVoucher.find({
+      campusId: user.campusId,
+      ...(classId && { classId }),
+      month,
+      year,
+    })
+      .populate("studentId")
+      .populate("classId");
 
-  if (!vouchers.length) {
-    return new Response("No vouchers found", { status: 404 });
-  }
+    if (!vouchers.length) {
+      return new Response("No vouchers found", { status: 404 });
+    }
 
-  const monthName = new Date(year, month - 1).toLocaleString("en-US", {
-    month: "long",
-  });
-
-  let html = "";
-
-  for (const v of vouchers) {
-    const adjustment = await StudentFeeAdjustment.findOne({
-      campusId: v.campusId,
-      studentId: v.studentId?._id,
-      classId: v.classId?._id,
-      month: v.month,
-      year: v.year,
-    }).lean();
-
-    const discount = adjustment?.discount || 0;
-    const extraFee = adjustment?.extraFee || 0;
-
-    const payable = Math.max(
-      0,
-      (v.fees?.monthlyFee || 0) +
-        (v.fees?.arrears || 0) +
-        extraFee -
-        discount
-    );
-
-    const base = singleCopy
-      .replace("{{STUDENT}}", v.studentId?.name || "")
-      .replace("{{FATHER}}", v.studentId?.fatherName || "")
-      .replace("{{ROLL}}", v.studentId?.rollNumber || "")
-      .replace("{{CLASS}}", v.classId?.className || "")
-      .replace("{{MONTH}}", `${monthName} ${year}`)
-      .replace("{{MF}}", v.fees?.monthlyFee || 0)
-      .replace("{{AR}}", v.fees?.arrears || 0)
-      .replace("{{EF}}", extraFee)
-      .replace("{{DIS}}", discount)
-      .replace("{{PWD}}", payable);
-
-    html += `
-      <div class="page">
-        ${base.replace("{{COPY}}", "OFFICE COPY")}
-        <div class="cut-line">✂ CUT HERE</div>
-        ${base.replace("{{COPY}}", "STUDENT COPY")}
-      </div>
-    `;
-  }
-
-  const finalHtml = baseTemplate.replace("{{VOUCHER_CONTENT}}", html);
-
-  /* ===============================
-     🔥 DUAL MODE BROWSER LAUNCH
-  ================================= */
-  const isLocal = process.env.NODE_ENV !== "production";
-  let browser;
-
-  if (isLocal) {
-    const puppeteer = (await import("puppeteer")).default;
-    browser = await puppeteer.launch({ headless: true });
-  } else {
-    browser = await puppeteerCore.launch({
-      args: chromium.args,
-      executablePath: await chromium.executablePath(),
-      headless: chromium.headless,
+    const monthName = new Date(year, month - 1).toLocaleString("en-US", {
+      month: "long",
     });
+
+    let html = "";
+
+    for (const v of vouchers) {
+      const adjustment = await StudentFeeAdjustment.findOne({
+        campusId: v.campusId,
+        studentId: v.studentId?._id,
+        classId: v.classId?._id,
+        month: v.month,
+        year: v.year,
+      }).lean();
+
+      const discount = adjustment?.discount || 0;
+      const extraFee = adjustment?.extraFee || 0;
+
+      const payable = Math.max(
+        0,
+        (v.fees?.monthlyFee || 0) +
+          (v.fees?.arrears || 0) +
+          extraFee -
+          discount
+      );
+
+      const base = singleCopy
+        .replace("{{STUDENT}}", v.studentId?.name || "")
+        .replace("{{FATHER}}", v.studentId?.fatherName || "")
+        .replace("{{ROLL}}", v.studentId?.rollNumber || "")
+        .replace("{{CLASS}}", v.classId?.className || "")
+        .replace("{{MONTH}}", `${monthName} ${year}`)
+        .replace("{{MF}}", v.fees?.monthlyFee || 0)
+        .replace("{{AR}}", v.fees?.arrears || 0)
+        .replace("{{EF}}", extraFee)
+        .replace("{{DIS}}", discount)
+        .replace("{{PWD}}", payable);
+
+      html += `
+        <div class="page">
+          ${base.replace("{{COPY}}", "OFFICE COPY")}
+          <div class="cut-line">✂ CUT HERE</div>
+          ${base.replace("{{COPY}}", "STUDENT COPY")}
+        </div>
+      `;
+    }
+
+    const finalHtml = baseTemplate.replace("{{VOUCHER_CONTENT}}", html);
+
+    /* ===============================
+       🔥 FINAL BROWSER LAUNCH FIX
+    ================================= */
+    const isVercel = !!process.env.VERCEL;
+    let browser;
+
+    if (!isVercel) {
+      // LOCAL
+      const puppeteer = (await import("puppeteer")).default;
+      browser = await puppeteer.launch({ headless: true });
+    } else {
+      // VERCEL
+      const executablePath =
+        (await chromium.executablePath()) || "/usr/bin/chromium-browser";
+
+      browser = await puppeteerCore.launch({
+        args: chromium.args,
+        executablePath,
+        headless: chromium.headless,
+      });
+    }
+
+    const page = await browser.newPage();
+    await page.setContent(finalHtml, { waitUntil: "load" });
+
+    const pdf = await page.pdf({
+      format: "A4",
+      printBackground: true,
+    });
+
+    await browser.close();
+
+    return new Response(pdf, {
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename=fee-vouchers-${month}-${year}.pdf`,
+      },
+    });
+  } catch (err) {
+    console.error("PDF GENERATION ERROR 👉", err);
+    return new Response("Failed to generate PDF", { status: 500 });
   }
-
-  const page = await browser.newPage();
-  await page.setContent(finalHtml, { waitUntil: "load" });
-
-  const pdf = await page.pdf({
-    format: "A4",
-    printBackground: true,
-  });
-
-  await browser.close();
-
-  return new Response(pdf, {
-    headers: {
-      "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename=fee-vouchers-${month}-${year}.pdf`,
-    },
-  });
 }

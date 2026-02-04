@@ -16,6 +16,7 @@ export default function GenerateFeePage() {
 
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   const [alreadyGenerated, setAlreadyGenerated] = useState(false);
 
@@ -61,19 +62,14 @@ export default function GenerateFeePage() {
         throw new Error(data.message || "Preview failed");
       }
 
-      // 🔥 FEE ALREADY GENERATED → REDIRECT
+      /* ===============================
+         🔥 ALREADY GENERATED CASE
+         =============================== */
       if (data.alreadyGenerated) {
         setAlreadyGenerated(true);
-        setShowModal(false);
         setPreview([]);
-        setSuccess("Fee already generated. Redirecting…");
-
-        setTimeout(() => {
-          router.push(
-            `/principal/fee/vouchers?classId=${classId}&month=${month}&year=${year}`
-          );
-        }, 800);
-
+        setShowModal(false);
+        setSuccess("Fee already generated. You can download vouchers.");
         return;
       }
 
@@ -97,13 +93,17 @@ export default function GenerateFeePage() {
     const updated = [...preview];
     updated[index][key] = Number(value);
 
-    updated[index].payable =
+    updated[index].payable = Math.max(
+      0,
       updated[index].baseFee +
+      (updated[index].arrears || 0) +   // 🔴 arrears missing thi
       (updated[index].extraFee || 0) -
-      (updated[index].discount || 0);
+      (updated[index].discount || 0)
+    );
 
     setPreview(updated);
   };
+
 
   /* ================= GENERATE FINAL ================= */
   const generateFinal = async () => {
@@ -136,19 +136,45 @@ export default function GenerateFeePage() {
         throw new Error(data.message || "Generation failed");
       }
 
-      setSuccess("Fee vouchers generated");
+      setSuccess("Fee vouchers generated successfully");
       setShowModal(false);
-
-      setTimeout(() => {
-        router.push(
-          `/principal/fee/vouchers?classId=${classId}&month=${month}&year=${year}`
-        );
-      }, 1000);
+      setAlreadyGenerated(true);
 
     } catch (err) {
       setError(err.message || "Generation error");
     } finally {
       setGenerating(false);
+    }
+  };
+
+  /* ================= DOWNLOAD VOUCHERS ================= */
+  const downloadVouchers = async () => {
+    try {
+      setDownloading(true);
+      setError("");
+
+      const res = await fetch(
+        `/api/principal/fee/vouchers-pdf?classId=${classId}&month=${month}&year=${year}`
+      );
+
+      if (!res.ok) throw new Error("Failed to generate PDF");
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `fee-vouchers-${month}-${year}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
+      window.URL.revokeObjectURL(url);
+
+    } catch (err) {
+      setError(err.message || "Download failed");
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -171,7 +197,7 @@ export default function GenerateFeePage() {
       )}
 
       {/* FILTERS */}
-      <div className="flex gap-4 flex-wrap">
+      <div className="flex gap-4 flex-wrap items-center">
         <select
           className="border p-2 rounded"
           value={classId}
@@ -191,7 +217,7 @@ export default function GenerateFeePage() {
           onChange={e => setMonth(e.target.value)}
         >
           <option value="">Select Month</option>
-          {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => (
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => (
             <option key={m} value={m}>
               {new Date(0, m - 1).toLocaleString("en", { month: "long" })}
             </option>
@@ -212,6 +238,18 @@ export default function GenerateFeePage() {
         >
           {loading ? "Loading..." : "Generate"}
         </button>
+
+        {/* ✅ DOWNLOAD BUTTON (ONLY WHEN ALREADY GENERATED) */}
+        {alreadyGenerated && (
+          <button
+            onClick={downloadVouchers}
+            disabled={downloading}
+            className={`px-5 py-2 rounded text-white font-semibold
+              ${downloading ? "bg-gray-400" : "bg-purple-600 hover:bg-purple-700"}`}
+          >
+            {downloading ? "Preparing PDF..." : "Download Vouchers PDF"}
+          </button>
+        )}
       </div>
 
       {/* PREVIEW MODAL */}

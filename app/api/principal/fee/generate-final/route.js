@@ -6,15 +6,39 @@ import FeeVoucher from "@/models/FeeVoucher";
 import FeeStructure from "@/models/FeeStructure";
 import StudentFeeAdjustment from "@/models/StudentFeeAdjustment";
 import FeeCycle from "@/models/FeeCycle";
+import VoucherCounter from "@/models/VoucherCounter";
 import { getAuthUser } from "@/utils/getAuthUser";
+
+/* ===============================
+   SAFE COUNTER
+=============================== */
+async function getVoucherCounter({ campusId, year, month, session }) {
+  return await VoucherCounter.findOneAndUpdate(
+    { campusId, year, month },
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true, session }
+  );
+}
+
+/*
+=====================================================
+FINAL GENERATE API (PRODUCTION SAFE)
+
+✔ Preview match
+✔ Discount locked
+✔ Extra fee locked
+✔ Late fee OFF
+✔ Arrears correct
+=====================================================
+*/
 
 export async function POST(req) {
   let session;
 
   try {
     await dbConnect();
-
     const user = await getAuthUser(req);
+
     if (!user || user.role !== "principal") {
       return NextResponse.json(
         { success: false, message: "Unauthorized" },
@@ -23,16 +47,10 @@ export async function POST(req) {
     }
 
     const { classId, students = [], month, year } = await req.json();
-
     const monthNum = Number(month);
     const yearNum = Number(year);
 
-    if (
-      !classId ||
-      !mongoose.Types.ObjectId.isValid(classId) ||
-      !monthNum ||
-      !yearNum
-    ) {
+    if (!classId || !monthNum || !yearNum) {
       return NextResponse.json(
         { success: false, message: "Invalid input" },
         { status: 400 }
@@ -40,54 +58,35 @@ export async function POST(req) {
     }
 
     /* ===============================
-       ALREADY GENERATED? (SAFE)
+       ALREADY GENERATED CHECK
        =============================== */
-    const existing = await FeeVoucher.find({
+    const exists = await FeeVoucher.findOne({
       campusId: user.campusId,
       classId,
       month: monthNum,
       year: yearNum,
-    }).lean();
+    });
 
-    if (existing.length > 0) {
-      return NextResponse.json(
-        {
-          success: true,
-          alreadyGenerated: true,
-          vouchers: existing,
-        },
-        { status: 200 }
-      );
+    if (exists) {
+      return NextResponse.json({
+        success: true,
+        alreadyGenerated: true,
+      });
     }
-
-    /* ===============================
-       NORMAL FLOW
-       =============================== */
-    const issueDate = new Date(yearNum, monthNum - 1, 1);
-    const dueDate = new Date(yearNum, monthNum - 1, 10);
 
     const structure = await FeeStructure.findOne({
       campusId: user.campusId,
       classId,
     });
 
-    if (!structure) {
-      return NextResponse.json(
-        { success: false, message: "Fee structure not found" },
-        { status: 404 }
-      );
-    }
-
     session = await mongoose.startSession();
     session.startTransaction();
 
-    let counter = 1;
-
     for (const s of students) {
-      const previous = await FeeVoucher.findOne({
+      const prev = await FeeVoucher.findOne({
         campusId: user.campusId,
         studentId: s.studentId,
-        status: { $ne: "paid" },
+        status: { $in: ["unpaid", "partial"] },
         $or: [
           { year: { $lt: yearNum } },
           { year: yearNum, month: { $lt: monthNum } },
@@ -96,48 +95,56 @@ export async function POST(req) {
         .sort({ year: -1, month: -1 })
         .session(session);
 
-      const arrearsAmount = previous
-        ? (previous.totals?.baseAmount || 0) +
-        (previous.totals?.lateAmount || 0)
+      const lastPayable = prev
+        ? (prev.totals?.baseAmount || 0) +
+          (prev.totals?.lateAmount || 0)
         : 0;
 
-      // 🔥 CORRECT CALCULATION
-      const monthlyAmount =
+      const arrears = prev
+        ? Math.max(0, lastPayable - (prev.received || 0))
+        : 0;
+
+      const monthly =
         structure.monthlyFee +
         Number(s.extraFee || 0) -
         Number(s.discount || 0);
 
-      const baseAmount = monthlyAmount + arrearsAmount;
-      const lateAmount = structure.lateFee || 0;
+      const baseAmount = monthly + arrears;
+
+      const counter = await getVoucherCounter({
+        campusId: user.campusId,
+        year: yearNum,
+        month: monthNum,
+        session,
+      });
+
+      const voucherNo = `${yearNum}${monthNum}-${counter.seq
+        .toString()
+        .padStart(4, "0")}`;
 
       await FeeVoucher.create(
         [
           {
             campusId: user.campusId,
-            voucherNo: `${yearNum}${monthNum}-${counter
-              .toString()
-              .padStart(4, "0")}`,
+            voucherNo,
             studentId: s.studentId,
             classId,
             month: monthNum,
             year: yearNum,
-            issueDate,
-            dueDate,
+            issueDate: new Date(yearNum, monthNum - 1, 1),
+            dueDate: new Date(yearNum, monthNum - 1, 10),
 
             fees: {
               monthlyFee: structure.monthlyFee,
               paperFee: Number(s.extraFee || 0),
-              arrears: arrearsAmount,
-              lateFee: lateAmount,
+              arrears,
+              lateFee: 0,
             },
 
-            // ✅ SOURCE OF TRUTH
             totals: {
               baseAmount,
-              lateAmount,
+              lateAmount: 0,
             },
-
-            status: "unpaid",
           },
         ],
         { session }
@@ -157,8 +164,6 @@ export async function POST(req) {
         },
         { upsert: true, session }
       );
-
-      counter++;
     }
 
     await FeeCycle.findOneAndUpdate(
@@ -170,18 +175,11 @@ export async function POST(req) {
     await session.commitTransaction();
     session.endSession();
 
-    return NextResponse.json(
-      { success: true, alreadyGenerated: false },
-      { status: 201 }
-    );
+    return NextResponse.json({ success: true });
+
   } catch (err) {
-    if (session) {
-      await session.abortTransaction();
-      session.endSession();
-    }
-
-    console.error("GENERATE FINAL ERROR:", err);
-
+    if (session) await session.abortTransaction();
+    console.error("GENERATE ERROR:", err);
     return NextResponse.json(
       { success: false, message: "Server error" },
       { status: 500 }

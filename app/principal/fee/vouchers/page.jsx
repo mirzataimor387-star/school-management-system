@@ -1,5 +1,18 @@
 "use client";
 
+/*
+=====================================================
+UPDATED UI / UX (LOGIC UNCHANGED)
+-----------------------------------------------------
+1) Modern, clean ERP-style layout
+2) Fully responsive (table → cards)
+3) Receive Fee modal = full overlay + bottom-sheet
+4) Amount auto-filled with pending fee
+5) Proper labels (no placeholder confusion)
+6) Header / background NEVER visible under modal
+=====================================================
+*/
+
 import { useEffect, useState } from "react";
 
 const statusStyle = {
@@ -19,7 +32,7 @@ export default function VoucherListPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // receive modal
+  /* ================= RECEIVE MODAL STATE ================= */
   const [showModal, setShowModal] = useState(false);
   const [selectedVoucher, setSelectedVoucher] = useState(null);
   const [amount, setAmount] = useState("");
@@ -58,7 +71,7 @@ export default function VoucherListPage() {
     load();
   }, [classId, month, year]);
 
-  /* ================= RECEIVE ================= */
+  /* ================= RECEIVE FEE ================= */
   const receiveFee = async () => {
     const res = await fetch("/api/principal/fee/receive", {
       method: "POST",
@@ -97,50 +110,57 @@ export default function VoucherListPage() {
 
       {/* HEADER */}
       <div>
-        <h1 className="text-2xl font-bold">Fee Vouchers</h1>
+        <h1 className="text-2xl font-bold">Fee Collection</h1>
         <p className="text-sm text-gray-500">
-          Monthly fee collection & tracking
+          Collect & track monthly student fees
         </p>
       </div>
 
       {/* FILTERS */}
-      <div className="bg-white rounded-xl shadow p-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <select
-          value={classId}
-          onChange={e => setClassId(e.target.value)}
-          className="border rounded-lg px-3 py-2 text-sm"
-        >
-          <option value="">Select Class</option>
-          {classes.map(c => (
-            <option key={c._id} value={c._id}>{c.className}</option>
-          ))}
-        </select>
+      <div className="bg-white rounded-2xl shadow p-4 grid gap-3 sm:grid-cols-3">
+        <div>
+          <label className="text-xs font-medium text-gray-600">Class</label>
+          <select
+            value={classId}
+            onChange={e => setClassId(e.target.value)}
+            className="mt-1 w-full border rounded-lg px-3 py-2"
+          >
+            <option value="">Select Class</option>
+            {classes.map(c => (
+              <option key={c._id} value={c._id}>{c.className}</option>
+            ))}
+          </select>
+        </div>
 
-        <select
-          value={month}
-          onChange={e => setMonth(e.target.value)}
-          className="border rounded-lg px-3 py-2 text-sm"
-        >
-          <option value="">Select Month</option>
-          {Array.from({ length: 12 }).map((_, i) => (
-            <option key={i + 1} value={i + 1}>
-              {new Date(0, i).toLocaleString("en", { month: "long" })}
-            </option>
-          ))}
-        </select>
+        <div>
+          <label className="text-xs font-medium text-gray-600">Month</label>
+          <select
+            value={month}
+            onChange={e => setMonth(e.target.value)}
+            className="mt-1 w-full border rounded-lg px-3 py-2"
+          >
+            <option value="">Select Month</option>
+            {Array.from({ length: 12 }).map((_, i) => (
+              <option key={i + 1} value={i + 1}>
+                {new Date(0, i).toLocaleString("en", { month: "long" })}
+              </option>
+            ))}
+          </select>
+        </div>
 
-        <select
-          value={year}
-          onChange={e => setYear(e.target.value)}
-          className="border rounded-lg px-3 py-2 text-sm"
-        >
-          {[year - 1, year, year + 1].map(y => (
-            <option key={y} value={y}>{y}</option>
-          ))}
-        </select>
+        <div>
+          <label className="text-xs font-medium text-gray-600">Year</label>
+          <select
+            value={year}
+            onChange={e => setYear(e.target.value)}
+            className="mt-1 w-full border rounded-lg px-3 py-2"
+          >
+            {[year - 1, year, year + 1].map(y => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
+        </div>
       </div>
-
-
 
       {/* STATES */}
       {loading ? (
@@ -152,7 +172,7 @@ export default function VoucherListPage() {
       ) : (
         <>
           {/* DESKTOP TABLE */}
-          <div className="hidden md:block bg-white rounded-xl shadow overflow-x-auto">
+          <div className="hidden md:block bg-white rounded-2xl shadow overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-100">
                 <tr>
@@ -166,10 +186,8 @@ export default function VoucherListPage() {
               </thead>
               <tbody>
                 {vouchers.map(v => (
-                  <tr key={v._id} className="border-t hover:bg-gray-50">
-                    <td className="p-3 font-medium">
-                      {v.studentId?.name}
-                    </td>
+                  <tr key={v._id} className="border-t">
+                    <td className="p-3 font-medium">{v.studentId?.name}</td>
                     <td className="text-center">{v.totalPayable}</td>
                     <td className="text-center text-green-700">{v.received}</td>
                     <td className="text-center text-red-600">{v.pending}</td>
@@ -183,9 +201,11 @@ export default function VoucherListPage() {
                         <button
                           onClick={() => {
                             setSelectedVoucher(v);
+                            setAmount(v.pending); // ✅ AUTO-FILL
+                            setReceivedAt(new Date().toISOString().split("T")[0]);
                             setShowModal(true);
                           }}
-                          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs"
+                          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded"
                         >
                           Receive
                         </button>
@@ -200,13 +220,13 @@ export default function VoucherListPage() {
           {/* MOBILE CARDS */}
           <div className="md:hidden space-y-3">
             {vouchers.map(v => (
-              <div key={v._id} className="bg-white rounded-xl shadow p-4 space-y-1">
+              <div key={v._id} className="bg-white rounded-2xl shadow p-4 space-y-2">
                 <div className="font-semibold">{v.studentId?.name}</div>
                 <div className="text-sm">Total: {v.totalPayable}</div>
                 <div className="text-sm text-green-700">Received: {v.received}</div>
                 <div className="text-sm text-red-600">Pending: {v.pending}</div>
 
-                <span className={`inline-block mt-1 px-3 py-1 rounded-full text-xs font-semibold ${statusStyle[v.status]}`}>
+                <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${statusStyle[v.status]}`}>
                   {v.status}
                 </span>
 
@@ -214,9 +234,11 @@ export default function VoucherListPage() {
                   <button
                     onClick={() => {
                       setSelectedVoucher(v);
+                      setAmount(v.pending); // ✅ AUTO-FILL
+                      setReceivedAt(new Date().toISOString().split("T")[0]);
                       setShowModal(true);
                     }}
-                    className="mt-3 w-full bg-blue-600 text-white py-2 rounded-lg"
+                    className="w-full bg-blue-600 text-white py-2 rounded-lg"
                   >
                     Receive Fee
                   </button>
@@ -227,26 +249,38 @@ export default function VoucherListPage() {
         </>
       )}
 
-
       {/* SUMMARY */}
       {vouchers.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center font-semibold">
-          <div className="bg-white rounded-xl shadow p-4">
+          <div className="bg-white rounded-2xl shadow p-4">
             Total<br /><span className="text-blue-700">{totalFee}</span>
           </div>
-          <div className="bg-white rounded-xl shadow p-4">
+          <div className="bg-white rounded-2xl shadow p-4">
             Received<br /><span className="text-green-700">{totalReceived}</span>
           </div>
-          <div className="bg-white rounded-xl shadow p-4">
+          <div className="bg-white rounded-2xl shadow p-4">
             Pending<br /><span className="text-red-600">{totalPending}</span>
           </div>
         </div>
       )}
 
-      {/* RECEIVE MODAL */}
+      {/* ================= RECEIVE MODAL (FIXED OVERLAY) ================= */}
       {showModal && selectedVoucher && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-3">
-          <div className="bg-white w-full max-w-md rounded-xl p-6 space-y-4">
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center">
+
+          <div
+            className="
+              bg-white w-full sm:max-w-md
+              rounded-t-3xl sm:rounded-2xl
+              p-6 space-y-4
+              max-h-[92vh] overflow-y-auto
+              shadow-2xl
+            "
+          >
+            {/* Mobile drag indicator */}
+            <div className="sm:hidden flex justify-center -mt-2 mb-2">
+              <div className="w-12 h-1.5 rounded-full bg-gray-300" />
+            </div>
 
             <h2 className="text-lg font-bold">Receive Fee</h2>
 
@@ -254,30 +288,44 @@ export default function VoucherListPage() {
               Student: <strong>{selectedVoucher.studentId?.name}</strong>
             </p>
 
-            <input
-              type="number"
-              placeholder="Amount"
-              value={amount}
-              onChange={e => setAmount(e.target.value)}
-              className="w-full border rounded-lg px-3 py-2"
-            />
+            <div>
+              <label className="text-xs font-medium text-gray-600">
+                Amount to Receive
+              </label>
+              <input
+                type="number"
+                value={amount}
+                onChange={e => setAmount(e.target.value)}
+                className="mt-1 w-full border rounded-lg px-3 py-2"
+              />
+            </div>
 
-            <select
-              value={method}
-              onChange={e => setMethod(e.target.value)}
-              className="w-full border rounded-lg px-3 py-2"
-            >
-              <option value="cash">Cash</option>
-              <option value="bank">Bank</option>
-              <option value="online">Online</option>
-            </select>
+            <div>
+              <label className="text-xs font-medium text-gray-600">
+                Payment Method
+              </label>
+              <select
+                value={method}
+                onChange={e => setMethod(e.target.value)}
+                className="mt-1 w-full border rounded-lg px-3 py-2"
+              >
+                <option value="cash">Cash</option>
+                <option value="bank">Bank</option>
+                <option value="online">Online</option>
+              </select>
+            </div>
 
-            <input
-              type="date"
-              value={receivedAt}
-              onChange={e => setReceivedAt(e.target.value)}
-              className="w-full border rounded-lg px-3 py-2"
-            />
+            <div>
+              <label className="text-xs font-medium text-gray-600">
+                Received Date
+              </label>
+              <input
+                type="date"
+                value={receivedAt}
+                onChange={e => setReceivedAt(e.target.value)}
+                className="mt-1 w-full border rounded-lg px-3 py-2"
+              />
+            </div>
 
             <div className="flex justify-end gap-3 pt-2">
               <button
@@ -290,7 +338,7 @@ export default function VoucherListPage() {
                 onClick={receiveFee}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
               >
-                Confirm
+                Confirm Receive
               </button>
             </div>
 

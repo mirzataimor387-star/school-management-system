@@ -9,11 +9,7 @@ const feeVoucherSchema = new mongoose.Schema(
       index: true,
     },
 
-    voucherNo: {
-      type: String,
-      required: true,
-      unique: true,
-    },
+    voucherNo: { type: String, required: true },
 
     studentId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -29,38 +25,48 @@ const feeVoucherSchema = new mongoose.Schema(
       index: true,
     },
 
-    month: { type: Number, required: true }, // 1–12
-    year: { type: Number, required: true },
-
-    issueDate: { type: Date, required: true },
-    dueDate: { type: Date, required: true },
+    month: Number,
+    year: Number,
+    issueDate: Date,
+    dueDate: Date,
 
     fees: {
-      monthlyFee: { type: Number, default: 0 },
-      paperFee: { type: Number, default: 0 },
-      arrears: { type: Number, default: 0 },
-      lateFee: { type: Number, default: 0 },
+      monthlyFee: Number,
+      paperFee: Number,
+      arrears: Number,
+      lateFee: Number,
     },
 
     totals: {
-      baseAmount: { type: Number, default: 0 },
-      lateAmount: { type: Number, default: 0 },
+      baseAmount: Number,
+      lateAmount: Number,
     },
+
+    received: { type: Number, default: 0 },
 
     status: {
       type: String,
       enum: ["unpaid", "partial", "paid"],
       default: "unpaid",
-      index: true,
     },
   },
   { timestamps: true }
 );
 
-feeVoucherSchema.index(
-  { campusId: 1, studentId: 1, month: 1, year: 1 },
-  { unique: true }
-);
+/* ✅ SAFE HOOK — NO next(), NO async+next MIX */
+feeVoucherSchema.pre("save", function () {
+  const total =
+    (this.totals?.baseAmount || 0) +
+    (this.totals?.lateAmount || 0);
+
+  if (this.received >= total) this.status = "paid";
+  else if (this.received > 0) this.status = "partial";
+  else this.status = "unpaid";
+});
+
+/* INDEXES */
+feeVoucherSchema.index({ campusId: 1, voucherNo: 1 }, { unique: true });
+feeVoucherSchema.index({ campusId: 1, studentId: 1, month: 1, year: 1 });
 
 export default mongoose.models.FeeVoucher ||
   mongoose.model("FeeVoucher", feeVoucherSchema);

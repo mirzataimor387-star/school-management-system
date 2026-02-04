@@ -43,6 +43,7 @@ export async function POST(req) {
       );
     }
 
+    // 1️⃣ Save payment
     await FeePayment.create({
       campusId: voucher.campusId,
       voucherId: voucher._id,
@@ -50,13 +51,31 @@ export async function POST(req) {
       amount: Number(amount),
       method: method || "cash",
       receivedAt: receivedAt ? new Date(receivedAt) : new Date(),
-
-      // 🔥 THIS IS THE FIX
-      receivedBy: user.id || user.user?._id,
+     receivedBy: user.id || user.user?._id,
     });
 
-    return NextResponse.json({ success: true });
+    // 2️⃣ Update voucher
+    voucher.received += Number(amount);
 
+    const payable =
+      voucher.totals.baseAmount + (voucher.fees.paperFee || 0); // ❌ NO LATE FEE
+
+    if (voucher.received >= payable) {
+      voucher.status = "paid";
+    } else if (voucher.received > 0) {
+      voucher.status = "partial";
+    } else {
+      voucher.status = "unpaid";
+    }
+
+    await voucher.save();
+
+    return NextResponse.json({
+      success: true,
+      status: voucher.status,
+      received: voucher.received,
+      payable,
+    });
   } catch (error) {
     console.error("RECEIVE ERROR:", error);
     return NextResponse.json(

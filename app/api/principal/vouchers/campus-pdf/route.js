@@ -12,7 +12,6 @@ import Student from "@/models/Student";
 import Class from "@/models/Class";
 import Campus from "@/models/Campus";
 
-
 /* =====================================
    CONSTANTS
 ===================================== */
@@ -20,7 +19,7 @@ const BORDER_COLOR = rgb(0.6, 0.6, 0.6); // soft grey
 const WHITE = rgb(1, 1, 1);
 
 /* =====================================
-   SAFE LOGO LOADER (WITH FILE NAME)
+   SAFE LOGO LOADER
 ===================================== */
 async function loadLogo(pdfDoc, fileName) {
     try {
@@ -53,17 +52,32 @@ async function addVoucherPage(pdfDoc, { campus, student, voucher }) {
         height: 802,
         borderWidth: 1,
         borderColor: BORDER_COLOR,
-        color: WHITE, // 🔴 VERY IMPORTANT (NO BLACK)
+        color: WHITE,
     });
 
+    /* ================= MONTH LABEL ================= */
     const monthLabel = new Date(
         voucher.year,
         voucher.month - 1
     ).toLocaleString("en-US", { month: "long", year: "numeric" });
 
+    /* ==================================================
+       LATE FEE & PAYABLE LOGIC (VERY IMPORTANT)
+       --------------------------------------------------
+       - Late fee applies AFTER 10th
+       - Total Payable is dynamic
+       - Payable After Due Date is FIXED monthlyFee + 100
+    ================================================== */
     const lateAfter = new Date(voucher.year, voucher.month - 1, 10);
     const lateFee = new Date() > lateAfter ? 100 : 0;
-    const totalPayable = voucher.monthlyFee + lateFee;
+
+    // const totalPayable = voucher.monthlyFee + lateFee;
+
+    // 🔹 NEW: always show payable after due date
+    const payableAfterDueDate = voucher.monthlyFee + 100;
+    // 🔹 Pending dues (default 0 if not present)
+    const pendingDues = voucher.pendingAmount ?? 0;
+
 
     const drawCopy = (yTop, copyTitle) => {
         /* ================= HEADER ================= */
@@ -108,17 +122,6 @@ async function addVoucherPage(pdfDoc, { campus, student, voucher }) {
             font,
         });
 
-        /* ================= COPY BORDER ================= */
-        // page.drawRectangle({
-        //     x: 35,
-        //     y: yTop - 275,
-        //     width: 525,
-        //     height: 245,
-        //     borderWidth: 1,
-        //     borderColor: BORDER_COLOR,
-        //     color: WHITE, // 🔴 FIX
-        // });
-
         let y = yTop - 80;
 
         const tableRow = (label, value) => {
@@ -129,7 +132,7 @@ async function addVoucherPage(pdfDoc, { campus, student, voucher }) {
                 height: 18,
                 borderWidth: 0.6,
                 borderColor: BORDER_COLOR,
-                color: WHITE, // 🔴 FIX
+                color: WHITE,
             });
 
             page.drawRectangle({
@@ -139,7 +142,7 @@ async function addVoucherPage(pdfDoc, { campus, student, voucher }) {
                 height: 18,
                 borderWidth: 0.6,
                 borderColor: BORDER_COLOR,
-                color: WHITE, // 🔴 FIX
+                color: WHITE,
             });
 
             page.drawText(label, {
@@ -159,7 +162,7 @@ async function addVoucherPage(pdfDoc, { campus, student, voucher }) {
             y -= 18;
         };
 
-        /* ================= TABLE DATA ================= */
+        /* ================= STUDENT INFO ================= */
         tableRow("Student Name", student.name);
         tableRow("Father Name", student.fatherName || "-");
         tableRow("Class", student.className);
@@ -172,9 +175,16 @@ async function addVoucherPage(pdfDoc, { campus, student, voucher }) {
 
         y -= 10;
 
+        /* ================= FEE DETAILS ================= */
         tableRow("Monthly Fee", `Rs. ${voucher.monthlyFee}`);
         tableRow("Late Fee", `Rs. ${lateFee}`);
-        tableRow("Total Payable", `Rs. ${totalPayable}`);
+
+        // 🔹 NEW ROW (REQUESTED)
+        tableRow("Pending Dues", `Rs. ${pendingDues}`);
+        tableRow(
+            "Payable After Due Date",
+            `Rs. ${payableAfterDueDate + pendingDues}`
+        );
 
         y -= 18;
 
@@ -260,6 +270,7 @@ export async function GET() {
                     year: v.year,
                     dueDate: v.dueDate,
                     monthlyFee: v.fees.monthlyFee,
+                    pendingAmount: v.pendingAmount || 0,
                 },
             });
         }

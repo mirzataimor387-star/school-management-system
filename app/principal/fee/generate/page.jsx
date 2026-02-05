@@ -154,7 +154,7 @@ export default function GenerateFeePage() {
       setError("");
 
       const res = await fetch(
-        `/api/principal/fee/vouchers-pdf?classId=${classId}&month=${month}&year=${year}`
+        `/api/principal/reports/fee-voucher-pdf?classId=${classId}&month=${month}&year=${year}`
       );
 
       if (!res.ok) throw new Error("Failed to generate PDF");

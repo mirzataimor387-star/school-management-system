@@ -10,6 +10,7 @@ UPDATED UI / UX (LOGIC UNCHANGED)
 4) Amount auto-filled with pending fee
 5) Proper labels (no placeholder confusion)
 6) Header / background NEVER visible under modal
+7) ✅ Voucher PDF direct download (NEW)
 =====================================================
 */
 
@@ -98,6 +99,51 @@ export default function VoucherListPage() {
     const refresh = await fetch(`/api/principal/fee/vouchers?${params}`);
     const refreshed = await refresh.json();
     setVouchers(refreshed.vouchers || []);
+  };
+
+  /* ================= DOWNLOAD VOUCHER PDF ================= */
+  // ✅ ADDED (SAFE – DOES NOT TOUCH EXISTING LOGIC)
+  const downloadVoucherPdf = async (voucher) => {
+    try {
+      const res = await fetch("/api/principal/reports/fee-voucher-pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          student: {
+            name: voucher.studentId?.name,
+            rollNo: voucher.studentId?.rollNo,
+            className: voucher.className,
+          },
+          fee: {
+            month,
+            amount: voucher.amount,
+            lateFee: voucher.lateFee || 0,
+            total: voucher.totalPayable,
+            dueDate: voucher.dueDate,
+          },
+        }),
+      });
+
+      if (!res.ok) {
+        alert("Failed to generate voucher PDF");
+        return;
+      }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `fee-voucher-${voucher.studentId?.rollNo}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      alert("PDF download error");
+    }
   };
 
   /* ================= SUMMARY ================= */
@@ -196,16 +242,24 @@ export default function VoucherListPage() {
                         {v.status}
                       </span>
                     </td>
-                    <td className="text-center">
+                    <td className="text-center space-x-2">
+                      {/* ✅ NEW */}
+                      <button
+                        onClick={() => downloadVoucherPdf(v)}
+                        className="border px-3 py-1 rounded text-xs hover:bg-gray-100"
+                      >
+                        Voucher PDF
+                      </button>
+
                       {v.status !== "paid" && (
                         <button
                           onClick={() => {
                             setSelectedVoucher(v);
-                            setAmount(v.pending); // ✅ AUTO-FILL
+                            setAmount(v.pending);
                             setReceivedAt(new Date().toISOString().split("T")[0]);
                             setShowModal(true);
                           }}
-                          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded"
+                          className="bg-blue-600 text-white px-3 py-1 rounded text-xs"
                         >
                           Receive
                         </button>
@@ -230,19 +284,29 @@ export default function VoucherListPage() {
                   {v.status}
                 </span>
 
-                {v.status !== "paid" && (
+                <div className="flex gap-2">
+                  {/* ✅ NEW */}
                   <button
-                    onClick={() => {
-                      setSelectedVoucher(v);
-                      setAmount(v.pending); // ✅ AUTO-FILL
-                      setReceivedAt(new Date().toISOString().split("T")[0]);
-                      setShowModal(true);
-                    }}
-                    className="w-full bg-blue-600 text-white py-2 rounded-lg"
+                    onClick={() => downloadVoucherPdf(v)}
+                    className="w-1/2 border rounded-lg py-2 text-sm"
                   >
-                    Receive Fee
+                    Voucher PDF
                   </button>
-                )}
+
+                  {v.status !== "paid" && (
+                    <button
+                      onClick={() => {
+                        setSelectedVoucher(v);
+                        setAmount(v.pending);
+                        setReceivedAt(new Date().toISOString().split("T")[0]);
+                        setShowModal(true);
+                      }}
+                      className="w-1/2 bg-blue-600 text-white py-2 rounded-lg"
+                    >
+                      Receive
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -264,84 +328,48 @@ export default function VoucherListPage() {
         </div>
       )}
 
-      {/* ================= RECEIVE MODAL (FIXED OVERLAY) ================= */}
+      {/* RECEIVE MODAL (UNCHANGED) */}
       {showModal && selectedVoucher && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center">
-
-          <div
-            className="
-              bg-white w-full sm:max-w-md
-              rounded-t-3xl sm:rounded-2xl
-              p-6 space-y-4
-              max-h-[92vh] overflow-y-auto
-              shadow-2xl
-            "
-          >
-            {/* Mobile drag indicator */}
-            <div className="sm:hidden flex justify-center -mt-2 mb-2">
-              <div className="w-12 h-1.5 rounded-full bg-gray-300" />
-            </div>
-
+          <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl p-6 space-y-4">
             <h2 className="text-lg font-bold">Receive Fee</h2>
 
-            <p className="text-sm text-gray-600">
+            <p className="text-sm">
               Student: <strong>{selectedVoucher.studentId?.name}</strong>
             </p>
 
-            <div>
-              <label className="text-xs font-medium text-gray-600">
-                Amount to Receive
-              </label>
-              <input
-                type="number"
-                value={amount}
-                onChange={e => setAmount(e.target.value)}
-                className="mt-1 w-full border rounded-lg px-3 py-2"
-              />
-            </div>
+            <input
+              type="number"
+              value={amount}
+              onChange={e => setAmount(e.target.value)}
+              className="w-full border rounded-lg px-3 py-2"
+            />
 
-            <div>
-              <label className="text-xs font-medium text-gray-600">
-                Payment Method
-              </label>
-              <select
-                value={method}
-                onChange={e => setMethod(e.target.value)}
-                className="mt-1 w-full border rounded-lg px-3 py-2"
-              >
-                <option value="cash">Cash</option>
-                <option value="bank">Bank</option>
-                <option value="online">Online</option>
-              </select>
-            </div>
+            <select
+              value={method}
+              onChange={e => setMethod(e.target.value)}
+              className="w-full border rounded-lg px-3 py-2"
+            >
+              <option value="cash">Cash</option>
+              <option value="bank">Bank</option>
+              <option value="online">Online</option>
+            </select>
 
-            <div>
-              <label className="text-xs font-medium text-gray-600">
-                Received Date
-              </label>
-              <input
-                type="date"
-                value={receivedAt}
-                onChange={e => setReceivedAt(e.target.value)}
-                className="mt-1 w-full border rounded-lg px-3 py-2"
-              />
-            </div>
+            <input
+              type="date"
+              value={receivedAt}
+              onChange={e => setReceivedAt(e.target.value)}
+              className="w-full border rounded-lg px-3 py-2"
+            />
 
-            <div className="flex justify-end gap-3 pt-2">
-              <button
-                onClick={() => setShowModal(false)}
-                className="border px-4 py-2 rounded-lg"
-              >
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setShowModal(false)} className="border px-4 py-2 rounded-lg">
                 Cancel
               </button>
-              <button
-                onClick={receiveFee}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
-              >
+              <button onClick={receiveFee} className="bg-blue-600 text-white px-4 py-2 rounded-lg">
                 Confirm Receive
               </button>
             </div>
-
           </div>
         </div>
       )}

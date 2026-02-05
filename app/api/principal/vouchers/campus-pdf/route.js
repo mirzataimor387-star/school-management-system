@@ -1,11 +1,17 @@
 export const runtime = "nodejs";
+
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import fs from "fs";
 import path from "path";
 
 import dbConnect from "@/utils/connectdb";
 import { getAuthUser } from "@/utils/getAuthUser";
+
 import FeeVoucher from "@/models/FeeVoucher";
+import Student from "@/models/Student";
+import Class from "@/models/Class";
+import Campus from "@/models/Campus";
+
 
 /* =====================================
    CONSTANTS

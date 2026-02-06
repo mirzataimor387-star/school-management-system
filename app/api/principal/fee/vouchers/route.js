@@ -4,7 +4,11 @@ import dbConnect from "@/utils/connectdb";
 import FeeVoucher from "@/models/FeeVoucher";
 import FeePayment from "@/models/FeePayment";
 import StudentFeeAdjustment from "@/models/StudentFeeAdjustment";
+import Student from "@/models/Student"; // ✅ MUST
+import Class from "@/models/Class";     // (optional but recommended)
+
 import { getAuthUser } from "@/utils/getAuthUser";
+
 
 /*
 =====================================================

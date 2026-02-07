@@ -1,7 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { LayoutDashboard, School, Settings, X } from "lucide-react";
+import {
+  LayoutDashboard,
+  School,
+  Settings,
+  X,
+  PlusSquare,
+  UserPlus,
+  UserCheck,
+} from "lucide-react";
 
 export default function SuperAdminSidebar({ isOpen, onClose }) {
   return (
@@ -49,7 +57,7 @@ export default function SuperAdminSidebar({ isOpen, onClose }) {
           <Link
             href="/superadmin"
             onClick={onClose}
-            className="flex items-center gap-2 hover:text-blue-400"
+            className="flex items-center gap-3 hover:text-blue-400"
           >
             <LayoutDashboard size={18} />
             Dashboard
@@ -58,7 +66,7 @@ export default function SuperAdminSidebar({ isOpen, onClose }) {
           <Link
             href="/superadmin/campuses"
             onClick={onClose}
-            className="flex items-center gap-2 hover:text-blue-400"
+            className="flex items-center gap-3 hover:text-blue-400"
           >
             <School size={18} />
             Campuses
@@ -67,20 +75,38 @@ export default function SuperAdminSidebar({ isOpen, onClose }) {
           <Link
             href="/superadmin/create_campus"
             onClick={onClose}
-            className="flex items-center gap-2 hover:text-blue-400"
+            className="flex items-center gap-3 hover:text-blue-400"
           >
-            <School size={18} />
+            <PlusSquare size={18} />
             Create Campus
           </Link>
 
           <Link
+            href="/superadmin/create_principal"
+            onClick={onClose}
+            className="flex items-center gap-3 hover:text-blue-400"
+          >
+            <UserPlus size={18} />
+            Create Principal
+          </Link>
+
+          <Link
+            href="/superadmin/assign_principal"
+            onClick={onClose}
+            className="flex items-center gap-3 hover:text-blue-400"
+          >
+            <UserCheck size={18} />
+            Assign Principal
+          </Link>
+
+          {/* <Link
             href="/superadmin/settings"
             onClick={onClose}
-            className="flex items-center gap-2 hover:text-blue-400"
+            className="flex items-center gap-3 hover:text-blue-400"
           >
             <Settings size={18} />
             System Settings
-          </Link>
+          </Link> */}
 
         </nav>
       </aside>

@@ -4,12 +4,14 @@ import { useEffect, useState } from "react";
 
 /*
 =====================================================
-VOUCHER LIST (PDF DOWNLOAD REMOVED)
------------------------------------------------------
-✔ Stable fee listing
-✔ Receive fee working
-✔ No API navigation issues
-✔ Safe for production
+VOUCHER LIST – FINAL (FULLY WORKING)
+
+✔ Class / Month / Year filters
+✔ Class summary (total / received / pending)
+✔ Previous months pending (separate)
+✔ Current month vouchers list
+✔ FIFO receive supported
+✔ Proper reload after payment
 =====================================================
 */
 
@@ -20,7 +22,9 @@ const statusStyle = {
 };
 
 export default function VoucherListPage() {
+  /* ================= STATE ================= */
   const [vouchers, setVouchers] = useState([]);
+  const [pendingPrev, setPendingPrev] = useState([]);
   const [classes, setClasses] = useState([]);
 
   const [classId, setClassId] = useState("");
@@ -30,7 +34,7 @@ export default function VoucherListPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  /* ===== RECEIVE FEE MODAL STATE ===== */
+  /* ===== RECEIVE MODAL ===== */
   const [showModal, setShowModal] = useState(false);
   const [selectedVoucher, setSelectedVoucher] = useState(null);
   const [amount, setAmount] = useState("");
@@ -46,38 +50,48 @@ export default function VoucherListPage() {
       });
   }, []);
 
-  /* ================= LOAD VOUCHERS ================= */
-  useEffect(() => {
-    if (!classId || !month) return;
+  /* ================= RELOAD ALL ================= */
+  const reloadAll = async () => {
+    if (!classId || !month || !year) return;
 
-    const load = async () => {
-      setLoading(true);
-      setError("");
+    setLoading(true);
+    setError("");
 
+    try {
       const params = new URLSearchParams({ classId, month, year });
-      const res = await fetch(`/api/principal/fee/vouchers?${params}`);
-      const data = await res.json();
 
-      if (!data.success) {
-        setError(data.message || "Failed to load vouchers");
-        setLoading(false);
-        return;
-      }
+      const [vRes, pRes] = await Promise.all([
+        fetch(`/api/principal/fee/vouchers?${params}`),
+        fetch(
+          `/api/principal/fee/pending-last-month?classId=${classId}&month=${month}&year=${year}`
+        ),
+      ]);
 
-      setVouchers(data.vouchers || []);
-      setLoading(false);
-    };
+      const vData = await vRes.json();
+      const pData = await pRes.json();
 
-    load();
+      if (!vData.success) throw new Error();
+
+      setVouchers(vData.vouchers || []);
+      setPendingPrev(pData.pending || []);
+    } catch {
+      setError("Failed to load fee data");
+    }
+
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    reloadAll();
   }, [classId, month, year]);
 
-  /* ================= RECEIVE FEE ================= */
+  /* ================= RECEIVE ================= */
   const receiveFee = async () => {
     const res = await fetch("/api/principal/fee/receive", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        voucherId: selectedVoucher._id,
+        voucherId: selectedVoucher.voucherId || selectedVoucher._id,
         amount: Number(amount),
         method,
         receivedAt,
@@ -91,84 +105,106 @@ export default function VoucherListPage() {
     }
 
     setShowModal(false);
+    setSelectedVoucher(null);
     setAmount("");
     setReceivedAt("");
 
-    const params = new URLSearchParams({ classId, month, year });
-    const refresh = await fetch(`/api/principal/fee/vouchers?${params}`);
-    const refreshed = await refresh.json();
-    setVouchers(refreshed.vouchers || []);
+    await reloadAll();
   };
+
+  /* ================= CLASS SUMMARY ================= */
+  const classTotalFee = vouchers.reduce(
+    (sum, v) => sum + (v.totalPayable || 0),
+    0
+  );
+  const classTotalReceived = vouchers.reduce(
+    (sum, v) => sum + (v.received || 0),
+    0
+  );
+  const classTotalPending = vouchers.reduce(
+    (sum, v) => sum + (v.pending || 0),
+    0
+  );
 
   /* ================= RENDER ================= */
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-6 py-6 space-y-6">
+    <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
 
       {/* HEADER */}
       <div>
         <h1 className="text-2xl font-bold">Fee Collection</h1>
         <p className="text-sm text-gray-500">
-          Collect & track monthly student fees
+          Class-wise fee management
         </p>
       </div>
 
       {/* FILTERS */}
-      <div className="bg-white rounded-2xl shadow p-4 grid gap-3 sm:grid-cols-3">
-        <div>
-          <label className="text-xs font-medium text-gray-600">Class</label>
-          <select
-            value={classId}
-            onChange={e => setClassId(e.target.value)}
-            className="mt-1 w-full border rounded-lg px-3 py-2"
-          >
-            <option value="">Select Class</option>
-            {classes.map(c => (
-              <option key={c._id} value={c._id}>
-                {c.className}
-              </option>
-            ))}
-          </select>
-        </div>
+      <div className="bg-white p-4 rounded-xl shadow grid sm:grid-cols-3 gap-3">
+        <select value={classId} onChange={e => setClassId(e.target.value)}>
+          <option value="">Select Class</option>
+          {classes.map(c => (
+            <option key={c._id} value={c._id}>{c.className}</option>
+          ))}
+        </select>
 
-        <div>
-          <label className="text-xs font-medium text-gray-600">Month</label>
-          <select
-            value={month}
-            onChange={e => setMonth(e.target.value)}
-            className="mt-1 w-full border rounded-lg px-3 py-2"
-          >
-            <option value="">Select Month</option>
-            {Array.from({ length: 12 }).map((_, i) => (
-              <option key={i + 1} value={i + 1}>
-                {new Date(0, i).toLocaleString("en", { month: "long" })}
-              </option>
-            ))}
-          </select>
-        </div>
+        <select value={month} onChange={e => setMonth(e.target.value)}>
+          <option value="">Select Month</option>
+          {Array.from({ length: 12 }).map((_, i) => (
+            <option key={i + 1} value={i + 1}>
+              {new Date(0, i).toLocaleString("en", { month: "long" })}
+            </option>
+          ))}
+        </select>
 
-        <div>
-          <label className="text-xs font-medium text-gray-600">Year</label>
-          <select
-            value={year}
-            onChange={e => setYear(e.target.value)}
-            className="mt-1 w-full border rounded-lg px-3 py-2"
-          >
-            {[year - 1, year, year + 1].map(y => (
-              <option key={y} value={y}>{y}</option>
-            ))}
-          </select>
-        </div>
+        <select value={year} onChange={e => setYear(e.target.value)}>
+          {[year - 1, year, year + 1].map(y => (
+            <option key={y} value={y}>{y}</option>
+          ))}
+        </select>
       </div>
 
-      {/* STATES */}
+
+
+      {/* PREVIOUS MONTHS PENDING */}
+      {pendingPrev.length > 0 && (
+        <div className="bg-orange-50 p-4 rounded-xl border">
+          <h2 className="font-semibold mb-2">Previous Months Pending</h2>
+          <table className="w-full text-sm">
+            <tbody>
+              {pendingPrev.map(p => (
+                <tr key={p.voucherId}>
+                  <td>{p.studentName}</td>
+                  <td>{p.month}/{p.year}</td>
+                  <td className="text-red-600">{p.pending}</td>
+                  <td>
+                    <button
+                      onClick={() => {
+                        setSelectedVoucher(p);
+                        setAmount(p.pending);
+                        setReceivedAt(new Date().toISOString().split("T")[0]);
+                        setShowModal(true);
+                      }}
+                      className="bg-orange-600 text-white px-3 py-1 rounded"
+                    >
+                      Receive
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* CURRENT MONTH VOUCHERS */}
       {loading ? (
-        <div className="text-center">Loading…</div>
+        <p className="text-center">Loading…</p>
       ) : error ? (
-        <div className="text-center text-red-600">{error}</div>
+        <p className="text-center text-red-600">{error}</p>
       ) : vouchers.length === 0 ? (
-        <div className="text-center text-gray-500">No vouchers found</div>
+        <p className="text-center text-gray-500">No vouchers found</p>
       ) : (
-        <div className="bg-white rounded-2xl shadow overflow-x-auto">
+        <div className="bg-white rounded-xl shadow overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-100">
               <tr>
@@ -183,19 +219,18 @@ export default function VoucherListPage() {
             <tbody>
               {vouchers.map(v => (
                 <tr key={v._id} className="border-t">
-                  <td className="p-3 font-medium">{v.studentId?.name}</td>
+                  <td className="p-3">{v.studentId?.name}</td>
                   <td className="text-center">{v.totalPayable}</td>
-                  <td className="text-center text-green-700">{v.received}</td>
+                  <td className="text-center">{v.received}</td>
                   <td className="text-center text-red-600">{v.pending}</td>
                   <td className="text-center">
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${statusStyle[v.status]}`}>
+                    <span className={`px-3 py-1 rounded-full text-xs ${statusStyle[v.status]}`}>
                       {v.status}
                     </span>
                   </td>
                   <td className="text-center">
-                    {v.status !== "paid" && (
+                    {v.pending > 0 && (
                       <button
-                        type="button"
                         onClick={() => {
                           setSelectedVoucher(v);
                           setAmount(v.pending);
@@ -215,28 +250,39 @@ export default function VoucherListPage() {
         </div>
       )}
 
-      {/* RECEIVE MODAL */}
-      {showModal && selectedVoucher && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
-          <div className="bg-white w-full max-w-md rounded-2xl p-6 space-y-4">
-            <h2 className="text-lg font-bold">Receive Fee</h2>
 
-            <p className="text-sm">
-              Student: <strong>{selectedVoucher.studentId?.name}</strong>
-            </p>
+      {/* CLASS SUMMARY */}
+      {vouchers.length > 0 && (
+        <div className="grid sm:grid-cols-3 gap-4">
+          <div className="bg-blue-50 p-4 rounded-xl">
+            <p className="text-sm">Total Fee</p>
+            <p className="text-2xl font-bold">{classTotalFee}</p>
+          </div>
+          <div className="bg-green-50 p-4 rounded-xl">
+            <p className="text-sm">Received</p>
+            <p className="text-2xl font-bold">{classTotalReceived}</p>
+          </div>
+          <div className="bg-red-50 p-4 rounded-xl">
+            <p className="text-sm">Pending</p>
+            <p className="text-2xl font-bold">{classTotalPending}</p>
+          </div>
+        </div>
+      )}
+
+      {/* RECEIVE MODAL */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center">
+          <div className="bg-white p-6 rounded-xl w-full max-w-md space-y-4">
+            <h2 className="font-bold text-lg">Receive Payment</h2>
 
             <input
               type="number"
               value={amount}
               onChange={e => setAmount(e.target.value)}
-              className="w-full border rounded-lg px-3 py-2"
+              className="w-full border px-3 py-2 rounded"
             />
 
-            <select
-              value={method}
-              onChange={e => setMethod(e.target.value)}
-              className="w-full border rounded-lg px-3 py-2"
-            >
+            <select value={method} onChange={e => setMethod(e.target.value)}>
               <option value="cash">Cash</option>
               <option value="bank">Bank</option>
               <option value="online">Online</option>
@@ -246,21 +292,15 @@ export default function VoucherListPage() {
               type="date"
               value={receivedAt}
               onChange={e => setReceivedAt(e.target.value)}
-              className="w-full border rounded-lg px-3 py-2"
             />
 
             <div className="flex justify-end gap-3">
-              <button
-                onClick={() => setShowModal(false)}
-                className="border px-4 py-2 rounded-lg"
-              >
-                Cancel
-              </button>
+              <button onClick={() => setShowModal(false)}>Cancel</button>
               <button
                 onClick={receiveFee}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg"
+                className="bg-blue-600 text-white px-4 py-2 rounded"
               >
-                Confirm Receive
+                Confirm
               </button>
             </div>
           </div>

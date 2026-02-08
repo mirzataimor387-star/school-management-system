@@ -7,6 +7,7 @@ import FeeStructure from "@/models/FeeStructure";
 import StudentFeeAdjustment from "@/models/StudentFeeAdjustment";
 import FeeCycle from "@/models/FeeCycle";
 import VoucherCounter from "@/models/VoucherCounter";
+import ClassFeeSummary from "@/models/ClassFeeSummary"; // ✅ ADDED
 import { getAuthUser } from "@/utils/getAuthUser";
 
 /* ===============================
@@ -29,6 +30,7 @@ FINAL GENERATE API (PRODUCTION SAFE)
 ✔ Extra fee locked
 ✔ Late fee OFF
 ✔ Arrears correct
+✔ 🔥 ClassFeeSummary auto build (ADDED)
 =====================================================
 */
 
@@ -59,7 +61,7 @@ export async function POST(req) {
 
     /* ===============================
        ALREADY GENERATED CHECK
-       =============================== */
+    =============================== */
     const exists = await FeeVoucher.findOne({
       campusId: user.campusId,
       classId,
@@ -82,6 +84,9 @@ export async function POST(req) {
     session = await mongoose.startSession();
     session.startTransaction();
 
+    /* =================================================
+       VOUCHER GENERATION (UNCHANGED LOGIC)
+    ================================================= */
     for (const s of students) {
       const prev = await FeeVoucher.findOne({
         campusId: user.campusId,
@@ -166,6 +171,46 @@ export async function POST(req) {
       );
     }
 
+    /* =====================================================
+       🔥 CLASS FEE SUMMARY BUILD (NEW FEATURE)
+       - Runs once after vouchers are generated
+       - Single source of truth for Super Admin
+       - Receive API will only INC / DEC this
+    ===================================================== */
+    const vouchers = await FeeVoucher.find({
+      campusId: user.campusId,
+      classId,
+      month: monthNum,
+      year: yearNum,
+    }).session(session);
+
+    const totalFee = vouchers.reduce(
+      (sum, v) =>
+        sum +
+        (v.totals?.baseAmount || 0) +
+        (v.totals?.lateAmount || 0),
+      0
+    );
+
+    await ClassFeeSummary.findOneAndUpdate(
+      {
+        campusId: user.campusId,
+        classId,
+        month: monthNum, // NUMBER (1–12)
+        year: yearNum,
+      },
+      {
+        totalFee,
+        totalPending: totalFee,
+        totalReceived: 0,
+        totalVouchers: vouchers.length,
+      },
+      { upsert: true, session }
+    );
+
+    /* ===============================
+       FEE CYCLE MARK GENERATED
+    =============================== */
     await FeeCycle.findOneAndUpdate(
       { campusId: user.campusId, month: monthNum, year: yearNum },
       { status: "generated", generatedBy: user._id },

@@ -2,16 +2,17 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/utils/connectdb";
 import { getAuthUser } from "@/utils/getAuthUser";
 import FeeVoucher from "@/models/FeeVoucher";
+import FeePayment from "@/models/FeePayment";
 
 /*
 =====================================================
-SUPER ADMIN – FEES OVERVIEW (PRODUCTION FINAL)
+SUPER ADMIN – FEES DETAILS (AUDIT VIEW)
 
-✔ FeeVoucher = SOURCE OF TRUTH
-✔ Accurate totals always
-✔ Negative pending IMPOSSIBLE
+✔ Exact date & time
+✔ Voucher + Payment joined
 ✔ Month safe (January or 1)
 ✔ Year safe
+✔ Pagination ready
 =====================================================
 */
 
@@ -38,6 +39,11 @@ export async function GET(request) {
     const campusId = searchParams.get("campusId");
     const classId = searchParams.get("classId");
     const monthParam = searchParams.get("month"); // "January" or "1"
+    const year = Number(searchParams.get("year")) || new Date().getFullYear();
+
+    const page = Number(searchParams.get("page")) || 1;
+    const limit = Number(searchParams.get("limit")) || 20;
+    const skip = (page - 1) * limit;
 
     if (!campusId || !classId || !monthParam) {
       return NextResponse.json(
@@ -55,7 +61,6 @@ export async function GET(request) {
     ];
 
     let monthNum;
-
     if (!isNaN(monthParam)) {
       monthNum = Number(monthParam);
     } else {
@@ -69,68 +74,81 @@ export async function GET(request) {
       );
     }
 
-    const year = new Date().getFullYear(); // later UI se pass ho sakta hai
-
     /* ===============================
-       READ VOUCHERS (SOURCE OF TRUTH)
+       READ VOUCHERS
     =============================== */
     const vouchers = await FeeVoucher.find({
       campusId,
       classId,
       month: monthNum,
       year,
+    })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    const voucherIds = vouchers.map(v => v._id);
+
+    /* ===============================
+       READ PAYMENTS
+    =============================== */
+    const payments = await FeePayment.find({
+      voucherId: { $in: voucherIds },
     }).lean();
 
     /* ===============================
-       CALCULATIONS (AUTHORITATIVE)
+       MAP PAYMENTS BY VOUCHER
     =============================== */
-    const totalFee = vouchers.reduce(
-      (sum, v) =>
-        sum +
-        (v.totals?.baseAmount || 0) +
-        (v.totals?.lateAmount || 0),
-      0
-    );
-
-    const totalReceived = vouchers.reduce(
-      (sum, v) => sum + (v.received || 0),
-      0
-    );
-
-    const totalPending = Math.max(0, totalFee - totalReceived);
-
-    const summary = {
-      totalFee,
-      totalReceived,
-      totalPending,
-      totalVouchers: vouchers.length,
-    };
+    const paymentsByVoucher = {};
+    for (const p of payments) {
+      if (!paymentsByVoucher[p.voucherId]) {
+        paymentsByVoucher[p.voucherId] = [];
+      }
+      paymentsByVoucher[p.voucherId].push(p);
+    }
 
     /* ===============================
-       BREAKDOWN (UI COMPATIBLE)
+       BUILD RESPONSE
     =============================== */
-    const breakdown = {
-      [`${monthNum}-${year}`]: {
-        month: monthNum,
-        year,
-        totalFee,
-        received: totalReceived,
-        pending: totalPending,
-        vouchers: vouchers.length,
-      },
-    };
+    const rows = vouchers.map(v => {
+      const vPayments = paymentsByVoucher[v._id] || [];
+
+      return {
+        voucherNo: v.voucherNo,
+        studentId: v.studentId,
+        status: v.status,
+        feeAmount:
+          (v.totals?.baseAmount || 0) +
+          (v.totals?.lateAmount || 0),
+        voucherCreatedAt: v.createdAt,
+        payments: vPayments.map(p => ({
+          amount: p.amount,
+          method: p.method,
+          receivedAt: p.receivedAt,
+          entryAt: p.createdAt,
+          receivedBy: p.receivedBy,
+        })),
+      };
+    });
 
     /* ===============================
        RESPONSE
     =============================== */
     return NextResponse.json({
       success: true,
-      summary,
-      breakdown,
+      meta: {
+        page,
+        limit,
+        count: rows.length,
+        month: monthNum,
+        year,
+      },
+      rows,
     });
 
   } catch (err) {
-    console.error("SUPERADMIN FEES ERROR:", err);
+    console.error("SUPERADMIN FEES DETAILS ERROR:", err);
     return NextResponse.json(
       { success: false, message: "Server error" },
       { status: 500 }

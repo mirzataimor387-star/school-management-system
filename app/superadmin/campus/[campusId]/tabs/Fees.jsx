@@ -60,7 +60,6 @@ export default function Fees({ campusId }) {
       setDetails([]);
 
       try {
-        /* ---- SUMMARY ---- */
         const summaryRes = await fetch(
           `/api/superadmin/fees?campusId=${campusId}&classId=${selectedClass}&month=${selectedMonth}`,
           { credentials: "include" }
@@ -68,7 +67,6 @@ export default function Fees({ campusId }) {
         const summaryJson = await summaryRes.json();
         if (summaryJson.success) setSummary(summaryJson.summary);
 
-        /* ---- DETAILS ---- */
         const detailsRes = await fetch(
           `/api/superadmin/fees/details?campusId=${campusId}&classId=${selectedClass}&month=${selectedMonth}`,
           { credentials: "include" }
@@ -91,7 +89,7 @@ export default function Fees({ campusId }) {
       {/* ===============================
          FILTERS
       =============================== */}
-      <div className="bg-white p-4 border rounded md:grid md:grid-cols-2 md:gap-4 space-y-4 md:space-y-0">
+      <div className="bg-white p-4 border rounded grid gap-4 md:grid-cols-2">
         <div>
           <label className="text-sm font-medium block mb-1">Class</label>
           <select
@@ -117,12 +115,10 @@ export default function Fees({ campusId }) {
           >
             <option value="">Select Month</option>
             {[
-              "January", "February", "March", "April", "May", "June",
-              "July", "August", "September", "October", "November", "December",
+              "January","February","March","April","May","June",
+              "July","August","September","October","November","December",
             ].map((m, i) => (
-              <option key={m} value={i + 1}>
-                {m}
-              </option>
+              <option key={m} value={i + 1}>{m}</option>
             ))}
           </select>
         </div>
@@ -164,38 +160,90 @@ export default function Fees({ campusId }) {
       )}
 
       {/* ===============================
-         DETAILS TABLE
+         DETAILS (RESPONSIVE)
       =============================== */}
       {!loading && details.length > 0 && (
-        <div className="bg-white border rounded p-4 overflow-x-auto">
-          <h3 className="font-semibold mb-3">Fee Details</h3>
+        <div className="bg-white border rounded p-4">
+          <h3 className="font-semibold mb-4">Fee Details</h3>
 
-          <table className="w-full text-sm border">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="border p-2">Voucher</th>
-                <th className="border p-2">Amount</th>
-                <th className="border p-2">Status</th>
-                <th className="border p-2">Received At</th>
-                <th className="border p-2">Method</th>
-              </tr>
-            </thead>
-            <tbody>
-              {details.map((row) =>
-                row.payments.map((p) => (
-                  <tr key={p._id}>
-                    <td className="border p-2">{row.voucherNo}</td>
-                    <td className="border p-2">Rs {p.amount}</td>
-                    <td className="border p-2 capitalize">{row.status}</td>
-                    <td className="border p-2">
-                      {fmtDateTime(p.receivedAt)}
-                    </td>
-                    <td className="border p-2 capitalize">{p.method}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+          {/* ===== MOBILE (CARDS) ===== */}
+          <div className="space-y-3 md:hidden">
+            {details.map((row) =>
+              row.payments.map((p) => (
+                <div
+                  key={p._id}
+                  className="border rounded-lg p-4 space-y-2 shadow-sm"
+                >
+                  <div className="flex justify-between items-center">
+                    <span className="font-semibold text-sm">
+                      Voucher #{row.voucherNo}
+                    </span>
+                    <span
+                      className={`text-xs px-2 py-1 rounded-full capitalize ${
+                        row.status === "paid"
+                          ? "bg-green-100 text-green-700"
+                          : row.status === "partial"
+                          ? "bg-yellow-100 text-yellow-700"
+                          : "bg-red-100 text-red-700"
+                      }`}
+                    >
+                      {row.status}
+                    </span>
+                  </div>
+
+                  <Info label="Amount" value={`Rs ${p.amount}`} bold />
+                  <Info label="Received" value={fmtDateTime(p.receivedAt)} />
+                  <Info label="Method" value={p.method} capitalize />
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* ===== DESKTOP (TABLE) ===== */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full text-sm border">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="border p-2 text-left">Voucher</th>
+                  <th className="border p-2 text-left">Amount</th>
+                  <th className="border p-2 text-left">Status</th>
+                  <th className="border p-2 text-left">Received At</th>
+                  <th className="border p-2 text-left">Method</th>
+                </tr>
+              </thead>
+              <tbody>
+                {details.map((row) =>
+                  row.payments.map((p) => (
+                    <tr key={p._id} className="hover:bg-gray-50">
+                      <td className="border p-2">{row.voucherNo}</td>
+                      <td className="border p-2 font-medium">
+                        Rs {p.amount}
+                      </td>
+                      <td className="border p-2 capitalize">
+                        <span
+                          className={`px-2 py-1 rounded text-xs ${
+                            row.status === "paid"
+                              ? "bg-green-100 text-green-700"
+                              : row.status === "partial"
+                              ? "bg-yellow-100 text-yellow-700"
+                              : "bg-red-100 text-red-700"
+                          }`}
+                        >
+                          {row.status}
+                        </span>
+                      </td>
+                      <td className="border p-2">
+                        {fmtDateTime(p.receivedAt)}
+                      </td>
+                      <td className="border p-2 capitalize">
+                        {p.method}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>
@@ -203,13 +251,28 @@ export default function Fees({ campusId }) {
 }
 
 /* ===============================
-   STAT CARD
+   UI COMPONENTS
 =============================== */
 function Stat({ label, value, color = "" }) {
   return (
     <div className="bg-white border rounded p-4">
       <p className="text-xs text-gray-500">{label}</p>
       <p className={`text-lg font-bold ${color}`}>{value}</p>
+    </div>
+  );
+}
+
+function Info({ label, value, bold, capitalize }) {
+  return (
+    <div className="flex justify-between text-sm">
+      <span className="text-gray-500">{label}</span>
+      <span
+        className={`${bold ? "font-medium" : ""} ${
+          capitalize ? "capitalize" : ""
+        }`}
+      >
+        {value}
+      </span>
     </div>
   );
 }

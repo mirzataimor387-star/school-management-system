@@ -104,7 +104,7 @@ async function addVoucherPage(pdfDoc, { campus, student, voucher }) {
   const payableAfterDue = payableWithinDue + lateFee;
 
   /* =================================================
-     DRAW COPY
+     DRAW COPY (Student / Office)
   ================================================= */
   const drawCopy = (yTop, title) => {
     if (leftLogo) page.drawImage(leftLogo, { x: 40, y: yTop - 45, width: 45, height: 45 });
@@ -150,6 +150,10 @@ async function addVoucherPage(pdfDoc, { campus, student, voucher }) {
 
     infoLine(45, "Month", monthLabel);
     infoLine(320, "Due Date", new Date(voucher.dueDate).toLocaleDateString());
+    y -= 16;
+
+    /* 🔥 ADDED: VOUCHER NUMBER (NO OTHER CHANGE) */
+    infoLine(45, "Voucher No", voucher.voucherNo || "-");
     y -= 18;
 
     page.drawLine({ start: { x: 45, y }, end: { x: 540, y }, thickness: 0.6, color: BORDER });
@@ -283,7 +287,9 @@ export async function GET(req) {
       classId,
       month,
       year,
-    }).populate("studentId").populate("classId");
+    })
+      .populate("studentId")
+      .populate("classId");
 
     if (!vouchers.length) {
       return new Response("No vouchers found", { status: 404 });
@@ -301,6 +307,7 @@ export async function GET(req) {
           className: v.classId.className,
         },
         voucher: {
+          voucherNo: v.voucherNo, // ✅ PASS VOUCHER NUMBER
           month: v.month,
           year: v.year,
           dueDate: v.dueDate,
